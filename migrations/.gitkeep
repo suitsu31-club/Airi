@@ -1,0 +1,1 @@
+Put SQLx migration SQL files here. You should better use `.up.sql` and `.down.sql` files.

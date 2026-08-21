@@ -1,0 +1,41 @@
+//! # `base` — the foundational module
+//!
+//! `base` is the reference/shared module of this workspace. Every business
+//! feature lives in its own `modules/<name>` crate that mirrors the layout of
+//! this crate and depends on `base` for the types and helpers shared across the
+//! whole application (common entities, error types, config primitives,
+//! utilities, and so on).
+//!
+//! ## Module layout (the convention every module follows)
+//!
+//! - [`entities`] — persistence layer. Plain data types plus the
+//!   `Processor` implementations that read and
+//!   write them. Split into [`entities::db`] (PostgreSQL rows and queries) and
+//!   [`entities::redis`] (Redis key/value types).
+//! - [`services`] — business logic. Stateful `Processor`s that own their
+//!   dependencies (database, Redis, message queue, other services) and
+//!   orchestrate entities to fulfil a use case.
+//! - [`rpc`] — the transport edge. gRPC service implementations that translate
+//!   protobuf requests into service/entity calls and back.
+//! - [`events`] — AMQP message payloads this module publishes or consumes,
+//!   together with their routing.
+//! - [`hooks`] — background reactors: AMQP consumers, cron jobs, and event
+//!   loggers that run outside the request path.
+//! - [`config`] — strongly typed configuration for the module, stored in the
+//!   database and cached in Redis.
+//! - [`utils`] — small, dependency-light helpers local to the module.
+//!
+//! See `AGENTS.md` at the workspace root for the full authoring guide.
+
+#![deny(clippy::unwrap_used)]
+#![deny(clippy::expect_used)]
+#![deny(clippy::panic)]
+#![warn(clippy::arithmetic_side_effects)]
+
+pub mod entities;
+pub mod rpc;
+pub mod services;
+pub mod events;
+pub mod hooks;
+pub mod config;
+pub mod utils;

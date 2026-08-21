@@ -1,0 +1,23 @@
+{
+  "name": "app-protobuf",
+  "version": "0.1.0-alpha",
+  "private": true,
+  "type": "module",
+  "description": "Generated protobuf/gRPC TypeScript code, shared across the frontend packages.",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/generated/*.ts"
+  },
+  "scripts": {
+    "generate:proto": "./generate-proto.sh"
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.12.0",
+    "nice-grpc-common": "^2.0.3"
+  },
+  "devDependencies": {
+    "grpc-tools": "^1.13.1",
+    "ts-proto": "^2.11.8",
+    "typescript": "^5.9.3"
+  }
+}

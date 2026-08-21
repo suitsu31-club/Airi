@@ -1,0 +1,17 @@
+[package]
+name = "app_protobuf"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+prost = { workspace = true }
+prost-types = { workspace = true }
+time = { workspace = true }
+sqlx = { workspace = true }
+
+[build-dependencies]
+tonic-prost-build = { workspace = true }
