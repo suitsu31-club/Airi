@@ -1,3 +1,7 @@
+# Airi
+
+Club membership manage system.
+
 # wakuwaku template
 
 An agent-friendly Rust microservices template built on the
