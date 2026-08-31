@@ -10,8 +10,12 @@ impl core::fmt::Debug for SessionId {
         f.debug_tuple("SessionId")
             .field(&format!(
                 "{}***{}",
-                &self.0[..4],
-                &self.0[self.0.len().saturating_sub(4)..]
+                &self.0.chars().take(4).collect::<String>(),
+                &self
+                    .0
+                    .chars()
+                    .take(self.0.len().saturating_sub(4))
+                    .collect::<String>()
             ))
             .finish()
     }
