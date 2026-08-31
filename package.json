@@ -12,5 +12,9 @@
   "trustedDependencies": [
     "grpc-tools",
     "protobufjs"
-  ]
+  ],
+  "dependencies": {
+    "@heroui/react": "^3.2.4",
+    "@heroui/styles": "^3.2.4"
+  }
 }
