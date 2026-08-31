@@ -46,3 +46,4 @@ pub mod invite;
 pub mod server_config;
 pub mod admin_operation_log;
 pub mod sessions;
+pub mod api_key;
