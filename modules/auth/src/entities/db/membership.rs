@@ -1,11 +1,12 @@
 use crate::entities::db::account::AccountId;
-use uuid::Uuid;
+use crate::entities::db::invite::InviteId;
 
 pub struct MembershipEntity {
     pub account: AccountId,
     pub level: i32,
     pub admin_privilege: Option<AdminRole>,
-    pub invited_by: Option<Uuid>,
+    pub invited_by: Option<InviteId>,
+    pub available_invitation_count: i32,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
