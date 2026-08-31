@@ -1,0 +1,98 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, account_id AS \"account_id: AccountId\",\n                      status AS \"status: SuspenseStatus\", created_at, reason,\n                      operated_by AS \"operated_by?: AccountId\"\n               FROM auth.account_suspense\n               WHERE account_id = $1 ORDER BY created_at DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "auth.account_suspense",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "account_id: AccountId",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "auth.account_suspense",
+            "name": "account_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "status: SuspenseStatus",
+        "type_info": {
+          "Custom": {
+            "name": "auth.suspense_status",
+            "kind": {
+              "Enum": [
+                "active",
+                "suspended"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "auth.account_suspense",
+            "name": "status"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "created_at",
+        "type_info": "Timestamp",
+        "origin": {
+          "Table": {
+            "table": "auth.account_suspense",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "auth.account_suspense",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "operated_by?: AccountId",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "auth.account_suspense",
+            "name": "operated_by"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "756d88d1bb65cda6b6b9fe25c15d068b7e86b904e64b7768fc81b0ca567c5a8e"
+}

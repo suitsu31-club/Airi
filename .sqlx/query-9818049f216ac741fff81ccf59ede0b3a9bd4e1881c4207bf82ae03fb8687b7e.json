@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO messaging.notification_settings\n               (id, send_login_email, send_invitation_email, receive_marketing_email)\n               VALUES ($1, $2, $3, $4)\n               ON CONFLICT (id) DO UPDATE\n               SET send_login_email = EXCLUDED.send_login_email,\n                   send_invitation_email = EXCLUDED.send_invitation_email,\n                   receive_marketing_email = EXCLUDED.receive_marketing_email,\n                   updated_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Bool",
+        "Bool",
+        "Bool"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "9818049f216ac741fff81ccf59ede0b3a9bd4e1881c4207bf82ae03fb8687b7e"
+}

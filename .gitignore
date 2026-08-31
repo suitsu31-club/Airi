@@ -24,3 +24,6 @@ target
 node_modules/
 .svelte-kit/
 *.tsbuildinfo
+
+.env
+*.env

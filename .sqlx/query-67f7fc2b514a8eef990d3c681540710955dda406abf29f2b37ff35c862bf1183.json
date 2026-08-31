@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO auth.credit (account) VALUES ($1)\n               ON CONFLICT (account) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "67f7fc2b514a8eef990d3c681540710955dda406abf29f2b37ff35c862bf1183"
+}

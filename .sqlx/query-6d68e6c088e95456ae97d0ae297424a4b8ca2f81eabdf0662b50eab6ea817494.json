@@ -1,0 +1,90 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT id, account AS \"account: AccountId\", available_amount_change,\n                      frozen_amount_change, reason, created_at\n               FROM auth.credit_change_history\n               WHERE account = $1 ORDER BY created_at DESC LIMIT $2 OFFSET $3",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "auth.credit_change_history",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "account: AccountId",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "auth.credit_change_history",
+            "name": "account"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "available_amount_change",
+        "type_info": "Numeric",
+        "origin": {
+          "Table": {
+            "table": "auth.credit_change_history",
+            "name": "available_amount_change"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "frozen_amount_change",
+        "type_info": "Numeric",
+        "origin": {
+          "Table": {
+            "table": "auth.credit_change_history",
+            "name": "frozen_amount_change"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "reason",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "auth.credit_change_history",
+            "name": "reason"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "created_at",
+        "type_info": "Timestamp",
+        "origin": {
+          "Table": {
+            "table": "auth.credit_change_history",
+            "name": "created_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int8",
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "6d68e6c088e95456ae97d0ae297424a4b8ca2f81eabdf0662b50eab6ea817494"
+}

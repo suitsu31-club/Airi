@@ -1,0 +1,102 @@
+syntax = "proto3";
+
+package airi.admin;
+
+import "shared/shared.proto";
+
+// Administrative user, role, config, and audit management (RBAC enforced).
+service AdminManage {
+  rpc ListUsers(ListUsersRequest) returns (ListUsersReply);
+  rpc GetUser(GetUserRequest) returns (GetUserReply);
+  rpc BanUser(BanUserRequest) returns (airi.shared.Empty);
+  rpc UnbanUser(UnbanUserRequest) returns (airi.shared.Empty);
+  rpc SetUserRole(SetUserRoleRequest) returns (airi.shared.Empty);
+  rpc GrantInvitations(GrantInvitationsRequest) returns (GrantInvitationsReply);
+  rpc GetServerConfig(GetServerConfigRequest) returns (GetServerConfigReply);
+  rpc SetServerConfig(SetServerConfigRequest) returns (airi.shared.Empty);
+  rpc ListAuditLogs(ListAuditLogsRequest) returns (ListAuditLogsReply);
+}
+
+message AdminUserInfo {
+  string user_id = 1;
+  string username = 2;
+  string email = 3;
+  int32 level = 4;
+  optional string admin_role = 5;
+  bool suspended = 6;
+  uint64 registered_at = 7;
+}
+
+message ListUsersRequest {
+  uint32 limit = 1;
+  uint32 offset = 2;
+}
+
+message ListUsersReply {
+  repeated AdminUserInfo users = 1;
+}
+
+message GetUserRequest {
+  string user_id = 1;
+}
+
+message GetUserReply {
+  optional AdminUserInfo user = 1;
+}
+
+message BanUserRequest {
+  string user_id = 1;
+  string reason = 2;
+}
+
+message UnbanUserRequest {
+  string user_id = 1;
+}
+
+message SetUserRoleRequest {
+  string user_id = 1;
+  // Role to set; clears the role when unset.
+  optional string role = 2;
+}
+
+message GrantInvitationsRequest {
+  string user_id = 1;
+  int32 count = 2;
+}
+
+message GrantInvitationsReply {
+  int32 new_count = 1;
+}
+
+message GetServerConfigRequest {
+  string key = 1;
+}
+
+message GetServerConfigReply {
+  // JSON-encoded config value.
+  string value = 1;
+}
+
+message SetServerConfigRequest {
+  string key = 1;
+  // JSON-encoded config value.
+  string value = 2;
+}
+
+message AuditLogEntry {
+  int64 id = 1;
+  string admin = 2;
+  string operation_name = 3;
+  // JSON-encoded operation content.
+  string operation_content = 4;
+  uint64 created_at = 5;
+}
+
+message ListAuditLogsRequest {
+  uint32 limit = 1;
+  uint32 offset = 2;
+}
+
+message ListAuditLogsReply {
+  repeated AuditLogEntry entries = 1;
+}

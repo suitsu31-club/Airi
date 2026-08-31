@@ -6,3 +6,43 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+# Internal
+app_protobuf = { path = "../../lib/app_protobuf" }
+base = { path = "../base" }
+auth = { path = "../auth" }
+
+# Framework
+wakuwaku = { workspace = true }
+kanau = { workspace = true }
+tokio = { workspace = true }
+
+# Persistence
+sqlx = { workspace = true }
+redis = { workspace = true }
+
+# Messaging
+amqprs = { workspace = true }
+
+# gRPC / transport
+tonic = { workspace = true }
+tonic-prost = { workspace = true }
+prost = { workspace = true }
+
+# Serialization
+rkyv = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Data types
+uuid = { workspace = true }
+time = { workspace = true }
+
+# Email + templating
+lettre = { workspace = true }
+askama = { workspace = true }
+
+# Async
+futures = { workspace = true }
+
+# Tracing
+tracing = { workspace = true }

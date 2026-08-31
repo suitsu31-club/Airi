@@ -1,0 +1,111 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT p.id, p.invite AS \"invite: InviteId\", p.email, p.sent_at,\n                      p.will_release_at, p.last_status_change,\n                      p.status AS \"status: PendingInvitationStatus\"\n               FROM auth.pending_invitation p\n               JOIN auth.invite i ON i.id = p.invite\n               WHERE i.owner = $1\n               ORDER BY p.sent_at DESC",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "id",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "auth.pending_invitation",
+            "name": "id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "invite: InviteId",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "auth.pending_invitation",
+            "name": "invite"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "email",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "auth.pending_invitation",
+            "name": "email"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "sent_at",
+        "type_info": "Timestamp",
+        "origin": {
+          "Table": {
+            "table": "auth.pending_invitation",
+            "name": "sent_at"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "will_release_at",
+        "type_info": "Timestamp",
+        "origin": {
+          "Table": {
+            "table": "auth.pending_invitation",
+            "name": "will_release_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "last_status_change",
+        "type_info": "Timestamp",
+        "origin": {
+          "Table": {
+            "table": "auth.pending_invitation",
+            "name": "last_status_change"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "status: PendingInvitationStatus",
+        "type_info": {
+          "Custom": {
+            "name": "auth.pending_invitation_status",
+            "kind": {
+              "Enum": [
+                "pending",
+                "accepted",
+                "expired"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "auth.pending_invitation",
+            "name": "status"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "90d03bfe731b3055f8a0d096b6a73cf8e295baae950f407d4c61b431f0be0b4e"
+}

@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 # Internal
 app_protobuf = { path = "../../lib/app_protobuf" }
+base = { path = "../base" }
 
 # Framework
 wakuwaku = { workspace = true }
@@ -45,3 +46,21 @@ tracing = { workspace = true }
 
 # Algorithm
 itertools = { workspace = true }
+
+# HTTP / middleware
+axum = { workspace = true }
+tower = { workspace = true }
+http = { workspace = true }
+futures = { workspace = true }
+
+# Auth & security
+argon2 = { workspace = true }
+rand = { workspace = true }
+sha2 = { workspace = true }
+validator = { workspace = true }
+fast32 = { workspace = true }
+zeroize = { workspace = true }
+
+# Error handling
+anyhow = { workspace = true }
+thiserror = { workspace = true }

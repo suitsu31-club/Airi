@@ -1,0 +1,28 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE auth.pending_invitation SET status = 'expired', last_status_change = now()\n               WHERE status = 'pending' AND will_release_at < $1\n               RETURNING invite",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "invite",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "auth.pending_invitation",
+            "name": "invite"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Timestamp"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "3a8356a72e76b4d5a873b4cbfb7d048da16bbf5c71410c80845ffe84656c149c"
+}

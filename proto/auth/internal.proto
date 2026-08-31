@@ -1,0 +1,58 @@
+syntax = "proto3";
+
+package airi.internal;
+
+// Inter-service identity checks. Deployed on an internal-only listener with no
+// session-auth layer — this service *is* the verifier.
+service Identity {
+  rpc CheckSession(CheckSessionRequest) returns (CheckSessionReply);
+  rpc CheckApiKey(CheckApiKeyRequest) returns (CheckApiKeyReply);
+  rpc GetUserById(GetUserByIdRequest) returns (GetUserByIdReply);
+  rpc GetUsersByIds(GetUsersByIdsRequest) returns (GetUsersByIdsReply);
+}
+
+message CheckSessionRequest {
+  string session_id = 1;
+  string ip = 2;
+  string user_agent = 3;
+}
+
+message CheckSessionReply {
+  bool valid = 1;
+  optional string user_id = 2;
+}
+
+message CheckApiKeyRequest {
+  string api_key = 1;
+}
+
+message CheckApiKeyReply {
+  bool valid = 1;
+  optional string user_id = 2;
+  uint64 valid_until = 3;
+  repeated string scopes = 4;
+}
+
+message UserIdentity {
+  string user_id = 1;
+  string username = 2;
+  string email = 3;
+  optional string avatar_url = 4;
+  int32 level = 5;
+}
+
+message GetUserByIdRequest {
+  string user_id = 1;
+}
+
+message GetUserByIdReply {
+  optional UserIdentity user = 1;
+}
+
+message GetUsersByIdsRequest {
+  repeated string user_ids = 1;
+}
+
+message GetUsersByIdsReply {
+  repeated UserIdentity users = 1;
+}

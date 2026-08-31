@@ -1,0 +1,106 @@
+syntax = "proto3";
+
+package airi.auth;
+
+// Self-service profile, credit, invitation summary, and API key management.
+service UserProfile {
+  rpc GetMyProfile(GetMyProfileRequest) returns (MyProfile);
+  rpc GetPublicProfile(GetPublicProfileRequest) returns (PublicProfile);
+  rpc GetMyCredit(GetMyCreditRequest) returns (CreditInfo);
+  rpc GetMyCreditLog(GetMyCreditLogRequest) returns (GetMyCreditLogReply);
+  rpc GetMyInvitations(GetMyInvitationsRequest) returns (GetMyInvitationsReply);
+  rpc CreateApiKey(CreateApiKeyRequest) returns (CreateApiKeyReply);
+  rpc ListApiKeys(ListApiKeysRequest) returns (ListApiKeysReply);
+  rpc RevokeApiKey(RevokeApiKeyRequest) returns (RevokeApiKeyReply);
+}
+
+message MyProfile {
+  string user_id = 1;
+  string username = 2;
+  string email = 3;
+  optional string avatar_url = 4;
+  int32 level = 5;
+  optional string admin_role = 6;
+  uint64 registered_at = 7;
+}
+
+message PublicProfile {
+  string user_id = 1;
+  string username = 2;
+  optional string avatar_url = 3;
+  int32 level = 4;
+  uint64 registered_at = 5;
+}
+
+message GetMyProfileRequest {}
+
+message GetPublicProfileRequest {
+  string user_id = 1;
+}
+
+// Credit amounts are decimal strings.
+message CreditInfo {
+  string total_amount = 1;
+  string frozen_amount = 2;
+  string available_amount = 3;
+}
+
+message GetMyCreditRequest {}
+
+message CreditLogEntry {
+  int64 id = 1;
+  string available_amount_change = 2;
+  string frozen_amount_change = 3;
+  string reason = 4;
+  uint64 created_at = 5;
+}
+
+message GetMyCreditLogRequest {
+  uint32 limit = 1;
+  uint32 offset = 2;
+}
+
+message GetMyCreditLogReply {
+  repeated CreditLogEntry entries = 1;
+}
+
+message GetMyInvitationsRequest {}
+
+message GetMyInvitationsReply {
+  int32 available_count = 1;
+  uint32 sent_count = 2;
+}
+
+message CreateApiKeyRequest {
+  string remark = 1;
+  optional uint64 valid_until = 2;
+  repeated string scopes = 3;
+}
+
+message CreateApiKeyReply {
+  string id = 1;
+  // Plaintext key, returned exactly once at creation.
+  string api_key = 2;
+}
+
+message ApiKeyInfo {
+  string id = 1;
+  string remark = 2;
+  uint64 created_at = 3;
+  optional uint64 valid_until = 4;
+  repeated string scopes = 5;
+}
+
+message ListApiKeysRequest {}
+
+message ListApiKeysReply {
+  repeated ApiKeyInfo keys = 1;
+}
+
+message RevokeApiKeyRequest {
+  string id = 1;
+}
+
+message RevokeApiKeyReply {
+  bool revoked = 1;
+}

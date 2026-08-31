@@ -1,0 +1,52 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT account AS \"account: AccountId\", total_amount, frozen_amount\n               FROM auth.credit WHERE account = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "account: AccountId",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "auth.credit",
+            "name": "account"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "total_amount",
+        "type_info": "Numeric",
+        "origin": {
+          "Table": {
+            "table": "auth.credit",
+            "name": "total_amount"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "frozen_amount",
+        "type_info": "Numeric",
+        "origin": {
+          "Table": {
+            "table": "auth.credit",
+            "name": "frozen_amount"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false
+    ]
+  },
+  "hash": "61c1fc5158f456fd5469d5ea9f1cf3b480bdeddd845bbc1baa3d5cc5012de88f"
+}

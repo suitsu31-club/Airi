@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family: sans-serif;">
+    <h1>New sign-in to {{ site_name }}</h1>
+    <p>A new sign-in to your {{ site_name }} account was detected.</p>
+    <ul>
+      <li>IP address: {{ ip }}</li>
+      <li>User agent: {{ user_agent }}</li>
+      <li>Time (unix): {{ time }}</li>
+    </ul>
+    <p>If this wasn't you, please change your password and review your active sessions.</p>
+  </body>
+</html>

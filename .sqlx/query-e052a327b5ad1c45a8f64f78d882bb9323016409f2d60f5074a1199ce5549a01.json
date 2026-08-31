@@ -1,0 +1,88 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT account AS \"account: AccountId\", level,\n                      admin_privilege AS \"admin_privilege?: AdminRole\",\n                      invited_by AS \"invited_by?: InviteId\", available_invitation_count\n               FROM auth.membership WHERE account = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "account: AccountId",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "auth.membership",
+            "name": "account"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "level",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "auth.membership",
+            "name": "level"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "admin_privilege?: AdminRole",
+        "type_info": {
+          "Custom": {
+            "name": "auth.admin_role",
+            "kind": {
+              "Enum": [
+                "site_owner",
+                "maintainer",
+                "moderator",
+                "assistant"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "auth.membership",
+            "name": "admin_privilege"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "invited_by?: InviteId",
+        "type_info": "Int8",
+        "origin": {
+          "Table": {
+            "table": "auth.membership",
+            "name": "invited_by"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "available_invitation_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "auth.membership",
+            "name": "available_invitation_count"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      true,
+      false
+    ]
+  },
+  "hash": "e052a327b5ad1c45a8f64f78d882bb9323016409f2d60f5074a1199ce5549a01"
+}

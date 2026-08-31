@@ -1,0 +1,27 @@
+syntax = "proto3";
+
+package airi.messaging;
+
+import "shared/shared.proto";
+
+// Per-user notification preferences.
+service NotificationSettings {
+  rpc GetNotificationSettings(GetNotificationSettingsRequest) returns (GetNotificationSettingsReply);
+  rpc SetNotificationSettings(SetNotificationSettingsRequest) returns (airi.shared.Empty);
+}
+
+message NotificationSettingsData {
+  bool send_login_email = 1;
+  bool send_invitation_email = 2;
+  bool receive_marketing_email = 3;
+}
+
+message GetNotificationSettingsRequest {}
+
+message GetNotificationSettingsReply {
+  NotificationSettingsData settings = 1;
+}
+
+message SetNotificationSettingsRequest {
+  NotificationSettingsData settings = 1;
+}

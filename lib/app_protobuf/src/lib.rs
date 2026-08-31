@@ -29,3 +29,43 @@
 #![deny(clippy::unwrap_used)]
 #![deny(clippy::expect_used)]
 #![deny(clippy::panic)]
+
+#[allow(clippy::enum_variant_names)]
+#[allow(clippy::doc_overindented_list_items)]
+pub mod shared {
+    tonic::include_proto!("airi.shared");
+}
+
+#[allow(clippy::enum_variant_names)]
+#[allow(clippy::doc_overindented_list_items)]
+pub mod auth {
+    tonic::include_proto!("airi.auth");
+}
+
+#[allow(clippy::enum_variant_names)]
+#[allow(clippy::doc_overindented_list_items)]
+pub mod admin {
+    tonic::include_proto!("airi.admin");
+}
+
+#[allow(clippy::enum_variant_names)]
+#[allow(clippy::doc_overindented_list_items)]
+pub mod internal {
+    tonic::include_proto!("airi.internal");
+}
+
+#[allow(clippy::enum_variant_names)]
+#[allow(clippy::doc_overindented_list_items)]
+pub mod messaging {
+    tonic::include_proto!("airi.messaging");
+}
+
+impl From<()> for shared::Empty {
+    fn from((): ()) -> Self {
+        shared::Empty {}
+    }
+}
+
+impl From<shared::Empty> for () {
+    fn from(_: shared::Empty) -> Self {}
+}

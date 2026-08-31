@@ -1,28 +1,40 @@
-//! Module configuration.
-//!
-//! Put the strongly typed configuration for this module here. The convention in
-//! this stack is to store configuration as JSON in the database (one row per
-//! key in a shared application-config table) and cache it in Redis so services
-//! can load it cheaply and read-only at runtime. The management CLI seeds the
-//! defaults; a refresh step copies the database value into the Redis cache.
-//!
-//! Define a `serde`-(de)serializable struct that implements `Default` and bind
-//! it to a stable config key:
-//!
-//! ```ignore
-//! use serde::{Deserialize, Serialize};
-//!
-//! #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-//! pub struct ExampleConfig {
-//!     pub feature_enabled: bool,
-//!     pub max_items: u32,
-//! }
-//!
-//! // Bind the struct to the key used to store/lookup it in the database/Redis.
-//! // The concrete `ConfigJson`-style trait is provided by whichever module in
-//! // your workspace owns configuration storage.
-//! //
-//! // impl ConfigJson for ExampleConfig {
-//! //     const KEY: &'static str = "example";
-//! // }
-//! ```
+//! Typed configuration for the `auth` module.
+
+use base::config::ConfigJson;
+use serde::{Deserialize, Serialize};
+
+/// Runtime-tunable settings for authentication, sessions, and invitations.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthConfig {
+    /// Sliding session window in seconds: a session expires if not refreshed
+    /// within this period.
+    pub session_refresh_ttl_secs: u64,
+    /// Absolute session lifespan in seconds (hard cap regardless of refresh).
+    pub session_absolute_lifespan_secs: u64,
+    /// Whether open (invite-less) registration is permitted.
+    pub registration_open: bool,
+    /// Invitations granted to a newly registered member.
+    pub default_invitation_count: i32,
+    /// How long a minted invite remains valid before expiring.
+    pub invitation_expiry_secs: u64,
+    /// How long a pending (sent) invitation is held before it is released and
+    /// the sender's invitation count refunded.
+    pub pending_invitation_release_secs: u64,
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        Self {
+            session_refresh_ttl_secs: 604_800,
+            session_absolute_lifespan_secs: 2_592_000,
+            registration_open: false,
+            default_invitation_count: 0,
+            invitation_expiry_secs: 1_209_600,
+            pending_invitation_release_secs: 259_200,
+        }
+    }
+}
+
+impl ConfigJson for AuthConfig {
+    const KEY: &'static str = "auth";
+}

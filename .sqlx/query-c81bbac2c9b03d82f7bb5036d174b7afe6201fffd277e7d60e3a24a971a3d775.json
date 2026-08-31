@@ -1,0 +1,135 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT session_id AS \"session_id: SessionId\", user_id AS \"user: AccountId\",\n                      user_agent, ip_address, created_at, last_refreshed_at,\n                      lifespan AS \"lifespan: PgInterval\",\n                      security_option AS \"security_option: SessionSecurityOption\", expired_at\n               FROM auth.session WHERE session_id = $1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "session_id: SessionId",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "auth.session",
+            "name": "session_id"
+          }
+        }
+      },
+      {
+        "ordinal": 1,
+        "name": "user: AccountId",
+        "type_info": "Uuid",
+        "origin": {
+          "Table": {
+            "table": "auth.session",
+            "name": "user_id"
+          }
+        }
+      },
+      {
+        "ordinal": 2,
+        "name": "user_agent",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "auth.session",
+            "name": "user_agent"
+          }
+        }
+      },
+      {
+        "ordinal": 3,
+        "name": "ip_address",
+        "type_info": "Text",
+        "origin": {
+          "Table": {
+            "table": "auth.session",
+            "name": "ip_address"
+          }
+        }
+      },
+      {
+        "ordinal": 4,
+        "name": "created_at",
+        "type_info": "Timestamp",
+        "origin": {
+          "Table": {
+            "table": "auth.session",
+            "name": "created_at"
+          }
+        }
+      },
+      {
+        "ordinal": 5,
+        "name": "last_refreshed_at",
+        "type_info": "Timestamp",
+        "origin": {
+          "Table": {
+            "table": "auth.session",
+            "name": "last_refreshed_at"
+          }
+        }
+      },
+      {
+        "ordinal": 6,
+        "name": "lifespan: PgInterval",
+        "type_info": "Interval",
+        "origin": {
+          "Table": {
+            "table": "auth.session",
+            "name": "lifespan"
+          }
+        }
+      },
+      {
+        "ordinal": 7,
+        "name": "security_option: SessionSecurityOption",
+        "type_info": {
+          "Custom": {
+            "name": "auth.session_security_option",
+            "kind": {
+              "Enum": [
+                "reject_different_ip",
+                "reject_different_ip_or_user_agent",
+                "none"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "auth.session",
+            "name": "security_option"
+          }
+        }
+      },
+      {
+        "ordinal": 8,
+        "name": "expired_at",
+        "type_info": "Timestamp",
+        "origin": {
+          "Table": {
+            "table": "auth.session",
+            "name": "expired_at"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Text"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      false,
+      true
+    ]
+  },
+  "hash": "c81bbac2c9b03d82f7bb5036d174b7afe6201fffd277e7d60e3a24a971a3d775"
+}

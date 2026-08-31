@@ -1,15 +1,16 @@
-//! Module configuration.
+//! Module configuration primitives.
 //!
-//! Put the strongly typed configuration for this module here. The convention in
-//! this stack is to store configuration as JSON in the database (one row per
-//! key in a shared application-config table) and cache it in Redis so services
-//! can load it cheaply and read-only at runtime. The management CLI seeds the
-//! defaults; a refresh step copies the database value into the Redis cache.
+//! Strongly typed module configuration is stored as JSON in the shared
+//! `base.application_config` table (one row per [`ConfigJson::KEY`]) and cached
+//! in Redis at `config:{KEY}` so services can load it cheaply at runtime. The
+//! management CLI seeds the defaults; [`crate::config_provider`] provides the
+//! read/refresh/seed helpers.
 //!
-//! Define a `serde`-(de)serializable struct that implements `Default` and bind
-//! it to a stable config key:
+//! Each module defines a `serde`-(de)serializable struct implementing `Default`
+//! and binds it to a stable key:
 //!
 //! ```ignore
+//! use base::config::ConfigJson;
 //! use serde::{Deserialize, Serialize};
 //!
 //! #[derive(Debug, Clone, Serialize, Deserialize, Default)]
@@ -18,11 +19,20 @@
 //!     pub max_items: u32,
 //! }
 //!
-//! // Bind the struct to the key used to store/lookup it in the database/Redis.
-//! // The concrete `ConfigJson`-style trait is provided by whichever module in
-//! // your workspace owns configuration storage.
-//! //
-//! // impl ConfigJson for ExampleConfig {
-//! //     const KEY: &'static str = "example";
-//! // }
+//! impl ConfigJson for ExampleConfig {
+//!     const KEY: &'static str = "example";
+//! }
 //! ```
+
+use serde::Serialize;
+use serde::de::DeserializeOwned;
+
+/// A typed configuration payload bound to a stable storage key.
+///
+/// Implementors are stored as JSON in `base.application_config` and cached in
+/// Redis. A missing or malformed value always falls back to [`Default`], so a
+/// service can load configuration without ever failing on absence.
+pub trait ConfigJson: Default + Serialize + DeserializeOwned + Send + Sync {
+    /// Stable key used to store and look up this configuration.
+    const KEY: &'static str;
+}

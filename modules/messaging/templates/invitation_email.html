@@ -1,0 +1,12 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family: sans-serif;">
+    {% if !logo_url.is_empty() %}
+    <img src="{{ logo_url }}" alt="{{ site_name }}" style="max-height: 48px;" />
+    {% endif %}
+    <h1>You're invited to {{ site_name }}</h1>
+    <p>You have been invited to join {{ site_name }}. Click the link below to accept your invitation and create your account:</p>
+    <p><a href="{{ invite_url }}">{{ invite_url }}</a></p>
+    <p>If you did not expect this invitation, you can safely ignore this email.</p>
+  </body>
+</html>

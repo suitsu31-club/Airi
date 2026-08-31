@@ -1,0 +1,17 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO auth.credit_change_history\n               (account, available_amount_change, frozen_amount_change, reason)\n               VALUES ($1, $2, $3, $4)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Numeric",
+        "Numeric",
+        "Text"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "30e407ac79d9ae555cc97f6cad3b09f4db9c9c5cba0ec67fa8e248f5e2211e2b"
+}

@@ -1,0 +1,73 @@
+syntax = "proto3";
+
+package airi.auth;
+
+// Invitation minting and sending.
+service Invitation {
+  rpc CreateInvitation(CreateInvitationRequest) returns (CreateInvitationReply);
+  rpc SendInvitation(SendInvitationRequest) returns (SendInvitationReply);
+  rpc ResendInvitationEmail(ResendInvitationEmailRequest) returns (ResendInvitationEmailReply);
+  rpc ListMyInvitations(ListMyInvitationsRequest) returns (ListMyInvitationsReply);
+}
+
+message CreateInvitationRequest {
+  int32 count = 1;
+  // Owner of the minted invites; defaults to the caller when unset.
+  optional string owner = 2;
+}
+
+message CreateInvitationReply {
+  repeated string invite_tokens = 1;
+}
+
+enum SendInvitationResult {
+  SEND_INVITATION_RESULT_SENT = 0;
+  SEND_INVITATION_RESULT_NO_INVITATION_LEFT = 1;
+  SEND_INVITATION_RESULT_EMAIL_INVALID = 2;
+}
+
+message SendInvitationRequest {
+  string email = 1;
+}
+
+message SendInvitationReply {
+  SendInvitationResult result = 1;
+}
+
+enum ResendResult {
+  RESEND_RESULT_SENT = 0;
+  RESEND_RESULT_NOT_FOUND = 1;
+}
+
+message ResendInvitationEmailRequest {
+  int64 pending_invitation_id = 1;
+}
+
+message ResendInvitationEmailReply {
+  ResendResult result = 1;
+}
+
+message InviteInfo {
+  int64 id = 1;
+  string invite_token = 2;
+  string status = 3;
+  uint64 created_at = 4;
+  optional uint64 will_expire_at = 5;
+  string source = 6;
+}
+
+message PendingInvitationInfo {
+  int64 id = 1;
+  int64 invite = 2;
+  string email = 3;
+  uint64 sent_at = 4;
+  uint64 will_release_at = 5;
+  string status = 6;
+}
+
+message ListMyInvitationsRequest {}
+
+message ListMyInvitationsReply {
+  repeated InviteInfo invites = 1;
+  repeated PendingInvitationInfo pending = 2;
+}

@@ -1,0 +1,38 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT status AS \"status: SuspenseStatus\"\n               FROM auth.account_suspense\n               WHERE account_id = $1 ORDER BY created_at DESC LIMIT 1",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "status: SuspenseStatus",
+        "type_info": {
+          "Custom": {
+            "name": "auth.suspense_status",
+            "kind": {
+              "Enum": [
+                "active",
+                "suspended"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "auth.account_suspense",
+            "name": "status"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "4bf538e88639426710fcf7ff55f7adbd74eee6dfa96255cc05dc07c9c980c314"
+}

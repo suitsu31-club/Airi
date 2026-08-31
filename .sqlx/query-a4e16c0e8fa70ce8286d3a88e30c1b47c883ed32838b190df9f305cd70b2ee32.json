@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE auth.invite SET status = 'expired', last_status_change = now()\n               WHERE status = 'pending' AND will_expire_at IS NOT NULL AND will_expire_at < $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a4e16c0e8fa70ce8286d3a88e30c1b47c883ed32838b190df9f305cd70b2ee32"
+}

@@ -1,21 +1,37 @@
 //! # `app-server`
 //!
-//! The main application server binary. It wires the business modules under
-//! `modules/` together and runs them behind one or more *workers*.
-//!
-//! A worker is a single run mode selected at startup (typically via environment
-//! variables). Common modes are:
-//!
-//! - a **gRPC** server exposing each module's `rpc` services,
-//! - an **AMQP consumer** driving each module's `hooks`,
-//! - a **cron executor** running scheduled jobs,
-//! - a **REST/webhook** gateway for third-party callbacks.
-//!
-//! Shipping one binary that can run in several modes keeps deployment uniform
-//! while letting each responsibility scale independently.
-//!
-//! See `bin/app-server/README.md` for the full description.
+//! Runs the business modules behind one of several pluggable workers, selected
+//! by the `WORK_MODE` environment variable: `grpc`, `internal_grpc`, `consumer`,
+//! `cron`, or `openapi`.
 
-fn main() {
-    println!("Hello, world!");
+mod worker;
+
+use worker::WorkerArgs;
+
+#[tokio::main]
+async fn main() -> anyhow::Result<()> {
+    init_tracing();
+
+    let worker = WorkerArgs::load_from_env()?;
+    tracing::info!(?worker, "starting app-server worker");
+
+    tokio::select! {
+        result = worker.execute() => {
+            result?;
+        }
+        _ = shutdown_signal() => {
+            tracing::info!("shutdown signal received");
+        }
+    }
+    Ok(())
+}
+
+fn init_tracing() {
+    use tracing_subscriber::EnvFilter;
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info"));
+    tracing_subscriber::fmt().with_env_filter(filter).init();
+}
+
+async fn shutdown_signal() {
+    let _ = tokio::signal::ctrl_c().await;
 }

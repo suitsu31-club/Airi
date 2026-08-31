@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO messaging.notification_settings (id) VALUES ($1)\n               ON CONFLICT (id) DO NOTHING",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "f845f60c0870036a4778c9f4dc7eb7a0c8e362fee38aa7468ec2d85f1b70704f"
+}

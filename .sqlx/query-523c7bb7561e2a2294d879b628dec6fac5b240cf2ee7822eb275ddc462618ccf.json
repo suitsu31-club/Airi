@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "DELETE FROM auth.session\n               WHERE (expired_at IS NOT NULL AND expired_at < $1)\n                  OR (last_refreshed_at + lifespan < $1)",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "523c7bb7561e2a2294d879b628dec6fac5b240cf2ee7822eb275ddc462618ccf"
+}

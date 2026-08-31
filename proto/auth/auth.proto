@@ -1,0 +1,104 @@
+syntax = "proto3";
+
+package airi.auth;
+
+import "shared/shared.proto";
+
+// Registration, session lifecycle, and password management.
+service UserAuth {
+  rpc Register(RegisterRequest) returns (RegisterReply);
+  rpc Login(LoginRequest) returns (LoginReply);
+  rpc Logout(LogoutRequest) returns (airi.shared.Empty);
+  rpc RefreshSession(RefreshSessionRequest) returns (RefreshSessionReply);
+  rpc ListSessions(ListSessionsRequest) returns (ListSessionsReply);
+  rpc TerminateSession(TerminateSessionRequest) returns (airi.shared.Empty);
+  rpc TerminateAllSessions(TerminateAllSessionsRequest) returns (airi.shared.Empty);
+  rpc ChangePassword(ChangePasswordRequest) returns (ChangePasswordReply);
+}
+
+enum RegisterResult {
+  REGISTER_RESULT_SUCCESS = 0;
+  REGISTER_RESULT_EMAIL_TAKEN = 1;
+  REGISTER_RESULT_USERNAME_TAKEN = 2;
+  REGISTER_RESULT_INVALID_INVITE = 3;
+  REGISTER_RESULT_REGISTRATION_CLOSED = 4;
+}
+
+message RegisterRequest {
+  string username = 1;
+  string email = 2;
+  string password = 3;
+  optional string invite_token = 4;
+}
+
+message RegisterReply {
+  RegisterResult result = 1;
+  optional string user_id = 2;
+}
+
+enum LoginResult {
+  LOGIN_RESULT_SUCCESS = 0;
+  LOGIN_RESULT_WRONG_CREDENTIAL = 1;
+  LOGIN_RESULT_NOT_FOUND = 2;
+}
+
+message LoginRequest {
+  // Email address or username.
+  string identifier = 1;
+  string password = 2;
+}
+
+message LoginReply {
+  LoginResult result = 1;
+  // Set only when result is SUCCESS.
+  optional string session_id = 2;
+}
+
+message LogoutRequest {}
+
+enum RefreshResult {
+  REFRESH_RESULT_REFRESHED = 0;
+  REFRESH_RESULT_NOT_FOUND = 1;
+}
+
+message RefreshSessionRequest {}
+
+message RefreshSessionReply {
+  RefreshResult result = 1;
+}
+
+message SessionInfo {
+  string session_id = 1;
+  string user_agent = 2;
+  string ip_address = 3;
+  uint64 created_at = 4;
+  uint64 last_refreshed_at = 5;
+  optional uint64 expired_at = 6;
+  string security_option = 7;
+}
+
+message ListSessionsRequest {}
+
+message ListSessionsReply {
+  repeated SessionInfo sessions = 1;
+}
+
+message TerminateSessionRequest {
+  string session_id = 1;
+}
+
+message TerminateAllSessionsRequest {}
+
+enum ChangePasswordResult {
+  CHANGE_PASSWORD_RESULT_SUCCESS = 0;
+  CHANGE_PASSWORD_RESULT_WRONG_PASSWORD = 1;
+}
+
+message ChangePasswordRequest {
+  string old_password = 1;
+  string new_password = 2;
+}
+
+message ChangePasswordReply {
+  ChangePasswordResult result = 1;
+}

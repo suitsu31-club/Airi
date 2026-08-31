@@ -37,3 +37,5 @@
 //!     }
 //! }
 //! ```
+
+pub mod notification_settings;

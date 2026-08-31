@@ -40,3 +40,5 @@
 //! impl KeyValueRead for ExampleCache {}
 //! impl KeyValueWrite for ExampleCache {}
 //! ```
+
+pub mod session_cache;

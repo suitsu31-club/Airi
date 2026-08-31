@@ -1,0 +1,29 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE auth.membership\n               SET available_invitation_count = available_invitation_count + $2\n               WHERE account = $1 AND available_invitation_count + $2 >= 0\n               RETURNING available_invitation_count",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "available_invitation_count",
+        "type_info": "Int4",
+        "origin": {
+          "Table": {
+            "table": "auth.membership",
+            "name": "available_invitation_count"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Int4"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "47f931b7195be214c1e4f4340c12f19ab0a6d8eb088263c509bb8cb0d19cca3b"
+}

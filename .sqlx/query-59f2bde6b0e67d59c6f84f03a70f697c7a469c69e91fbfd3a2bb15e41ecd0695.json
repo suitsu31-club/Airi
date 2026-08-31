@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE auth.session SET last_refreshed_at = $2 WHERE session_id = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Timestamp"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "59f2bde6b0e67d59c6f84f03a70f697c7a469c69e91fbfd3a2bb15e41ecd0695"
+}

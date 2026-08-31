@@ -38,4 +38,6 @@ pub mod services;
 pub mod events;
 pub mod hooks;
 pub mod config;
+pub mod config_provider;
+pub mod db;
 pub mod utils;

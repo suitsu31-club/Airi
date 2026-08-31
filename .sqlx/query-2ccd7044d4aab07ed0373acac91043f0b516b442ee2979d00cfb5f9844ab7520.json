@@ -1,0 +1,27 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE auth.membership SET admin_privilege = $2 WHERE account = $1",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        {
+          "Custom": {
+            "name": "auth.admin_role",
+            "kind": {
+              "Enum": [
+                "site_owner",
+                "maintainer",
+                "moderator",
+                "assistant"
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "2ccd7044d4aab07ed0373acac91043f0b516b442ee2979d00cfb5f9844ab7520"
+}

@@ -1,0 +1,6 @@
+syntax = "proto3";
+
+package airi.shared;
+
+// A payload-free message used for void requests and replies.
+message Empty {}

@@ -6,3 +6,16 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+wakuwaku = { workspace = true }
+kanau = { workspace = true }
+sqlx = { workspace = true }
+redis = { workspace = true }
+amqprs = { workspace = true }
+rkyv = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+uuid = { workspace = true }
+time = { workspace = true }
+rust_decimal = { workspace = true }
+tracing = { workspace = true }
+tokio = { workspace = true }

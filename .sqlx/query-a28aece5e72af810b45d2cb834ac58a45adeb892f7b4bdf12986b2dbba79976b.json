@@ -1,0 +1,15 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO base.application_config (key, content) VALUES ($1, $2)\n           ON CONFLICT (key) DO UPDATE SET content = $2, last_updated_at = now()",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Text",
+        "Jsonb"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "a28aece5e72af810b45d2cb834ac58a45adeb892f7b4bdf12986b2dbba79976b"
+}

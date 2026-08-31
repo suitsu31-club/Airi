@@ -6,3 +6,28 @@ edition.workspace = true
 license.workspace = true
 
 [dependencies]
+# Internal
+base = { path = "../../modules/base" }
+auth = { path = "../../modules/auth" }
+messaging = { path = "../../modules/messaging" }
+
+# Framework
+wakuwaku = { workspace = true }
+kanau = { workspace = true }
+tokio = { workspace = true }
+
+# Persistence
+sqlx = { workspace = true, features = ["migrate"] }
+redis = { workspace = true }
+
+# CLI
+clap = { workspace = true }
+
+# Data
+uuid = { workspace = true }
+serde_json = { workspace = true }
+
+# Errors & tracing
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
