@@ -39,3 +39,4 @@ pub mod events;
 pub mod hooks;
 pub mod config;
 pub mod utils;
+pub mod openapi;
