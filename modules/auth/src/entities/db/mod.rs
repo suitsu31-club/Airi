@@ -43,3 +43,5 @@ pub mod suspense;
 pub mod membership;
 pub mod credit;
 pub mod invite;
+pub mod server_config;
+pub mod admin_operation_log;
