@@ -5,7 +5,8 @@ members = [
     "bin/manage-tool",
     "lib/app_protobuf",
     "modules/auth",
-    "modules/base"
+    "modules/base",
+    "modules/messaging"
 ]
 
 [workspace.package]
