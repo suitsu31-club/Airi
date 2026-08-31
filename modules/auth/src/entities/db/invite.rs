@@ -11,6 +11,7 @@ pub struct InviteEntity {
     pub will_expire_at: Option<PrimitiveDateTime>,
     pub last_status_change: PrimitiveDateTime,
     pub status: InviteStatus,
+    pub source: String,
 }
 
 pub enum InviteStatus {
