@@ -8,6 +8,7 @@ pub struct AccountEntity {
     pub id: AccountId,
     pub username: String,
     pub email: String,
+    pub avatar_url: Option<String>,
     pub password_hash: String,
     pub registered_at: PrimitiveDateTime,
 }
