@@ -1,9 +1,8 @@
 "use client";
 
-import { Check } from "@gravity-ui/icons";
 import {
   Button,
-  Description,
+  Checkbox,
   FieldError,
   Form,
   Input,
@@ -24,6 +23,14 @@ export function LoginForm() {
         <Input placeholder="Enter your password" />
         <FieldError />
       </TextField>
+      <Checkbox name="lock-ip">
+        <Checkbox.Content>
+          <Checkbox.Control>
+            <Checkbox.Indicator />
+          </Checkbox.Control>
+          Lock my session to my current IP address
+        </Checkbox.Content>
+      </Checkbox>
       <div>
         <Button type="submit">Login</Button>
       </div>
