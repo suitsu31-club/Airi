@@ -27,7 +27,7 @@ export default function LoginPage() {
           <p>
             If you did get invited, but didn't receive the invite email, you can
             request a resend from &nbsp;
-            <Link href="#" className="text-accent">
+            <Link href="/auth/resend-invite" className="text-accent">
               resend invite form
               <Link.Icon />
             </Link>
