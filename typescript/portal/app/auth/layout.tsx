@@ -1,5 +1,6 @@
 import { Zen_Kurenaido } from "next/font/google";
 import Image from "next/image";
+import { ThemeSwitcher } from "@/components/theme/theme-switcher";
 import cat from "@/public/kazusa-cat.svg";
 
 const zenKurenaido = Zen_Kurenaido({ weight: "400" });
@@ -25,6 +26,9 @@ export default function AuthLayout({
             After-School Sweets Club
           </p>
         </div>
+      </div>
+      <div className="flex-1 p-4 md:pl-0">
+        <ThemeSwitcher />
       </div>
       {children}
     </main>
