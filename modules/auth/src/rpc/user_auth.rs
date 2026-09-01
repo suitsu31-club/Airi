@@ -91,16 +91,20 @@ impl UserAuth for UserAuthRpc {
                 user_agent,
             })
             .await?;
-        let (code, session_id) = match result {
-            LoginResult::Success(sid) => (pb::LoginResult::Success, Some(sid.0)),
-            LoginResult::WrongCredential => (pb::LoginResult::WrongCredential, None),
-            LoginResult::NotFound => (pb::LoginResult::NotFound, None),
+        let (code, session_id, mfa_token) = match result {
+            LoginResult::Success(sid) => (pb::LoginResult::Success, Some(sid.0), None),
+            LoginResult::WrongCredential => (pb::LoginResult::WrongCredential, None, None),
+            LoginResult::NotFound => (pb::LoginResult::NotFound, None, None),
             // The wire contract does not distinguish suspension (anti-enumeration).
-            LoginResult::Suspended => (pb::LoginResult::WrongCredential, None),
+            LoginResult::Suspended => (pb::LoginResult::WrongCredential, None, None),
+            LoginResult::RequireMfa(token) => {
+                (pb::LoginResult::RequireMfa, None, Some(token.to_vec()))
+            }
         };
         Ok(Response::new(pb::LoginReply {
             result: code as i32,
             session_id,
+            mfa_token,
         }))
     }
 

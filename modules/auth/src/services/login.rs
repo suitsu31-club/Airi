@@ -3,12 +3,17 @@
 use crate::entities::db::account::{FindAccountByEmail, FindAccountByUsername};
 use crate::entities::db::sessions::{SessionId, SessionSecurityOption};
 use crate::entities::db::suspense::IsSuspended;
+use crate::entities::db::totp::FindUserTotpByUserId;
+use crate::entities::redis::mfa_login_token::{MFA_LOGIN_TOKEN_TTL_SECS, MfaLoginToken};
+use crate::entities::redis::session_cache::security_to_u8;
 use crate::services::session::{CreateSession, SessionService};
 use crate::utils::datetime::{now_primitive, to_unix};
 use crate::utils::password::{Argon2PasswordAlgorithm, PasswordAlgorithm};
 use base::events::UserLoginEvent;
 use kanau::processor::Processor;
 use wakuwaku::amqp::{AmqpMessageSend, AmqpPool};
+use std::time::Duration;
+use wakuwaku::redis::{KeyValueWrite, RedisConnection};
 use wakuwaku::sqlx::DatabaseProcessor;
 
 /// Authenticates credentials and issues sessions.
@@ -18,6 +23,7 @@ pub struct LoginService {
     pub mq: AmqpPool,
     pub alg: Argon2PasswordAlgorithm,
     pub session: SessionService,
+    pub redis: RedisConnection,
 }
 
 /// Authenticate by email/username and password.
@@ -35,6 +41,7 @@ pub enum LoginResult {
     WrongCredential,
     NotFound,
     Suspended,
+    RequireMfa([u8; 32]),
 }
 
 impl Processor<Login> for LoginService {
@@ -80,6 +87,33 @@ impl Processor<Login> for LoginService {
             .await?
         {
             return Ok(LoginResult::Suspended);
+        }
+
+        if self
+            .db
+            .process(FindUserTotpByUserId {
+                user_id: account.id.0,
+            })
+            .await?
+            .is_some()
+        {
+            // Second factor required: hand back a short-lived token instead of a
+            // session. Login only completes once `VerifyMfaLogin` succeeds, so no
+            // session is created and no `UserLoginEvent` is emitted here.
+            let token: [u8; 32] = rand::random();
+            MfaLoginToken {
+                token,
+                user_id: account.id.0,
+                ip: input.ip.clone(),
+                user_agent: input.user_agent.clone(),
+                security_option: security_to_u8(SessionSecurityOption::None),
+            }
+            .write_with_ttl(
+                &mut self.redis.clone(),
+                Duration::from_secs(MFA_LOGIN_TOKEN_TTL_SECS),
+            )
+            .await?;
+            return Ok(LoginResult::RequireMfa(token));
         }
 
         let session_id = self

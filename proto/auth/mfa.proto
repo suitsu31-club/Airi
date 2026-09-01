@@ -1,0 +1,62 @@
+syntax = "proto3";
+
+package airi.auth;
+
+import "shared/shared.proto";
+
+// TOTP-based multi-factor authentication: enrollment, recovery codes, status,
+// and the second-factor exchange that completes an MFA-gated login.
+service Mfa {
+  rpc StartTotpEnrollment(StartTotpEnrollmentRequest) returns (StartTotpEnrollmentReply);
+  rpc FinishTotpEnrollment(FinishTotpEnrollmentRequest) returns (FinishTotpEnrollmentReply);
+  rpc DisableMfa(DisableMfaRequest) returns (DisableMfaReply);
+  rpc GetMfaStatus(GetMfaStatusRequest) returns (GetMfaStatusReply);
+  rpc VerifyMfaLogin(VerifyMfaLoginRequest) returns (VerifyMfaLoginReply);
+}
+
+message StartTotpEnrollmentRequest {}
+message StartTotpEnrollmentReply {
+  string secret_base32 = 1;
+  string otpauth_uri = 2;
+  string qr_png_base64 = 3;
+}
+
+enum FinishTotpEnrollmentResult {
+  FINISH_TOTP_ENROLLMENT_RESULT_SUCCESS = 0;
+  FINISH_TOTP_ENROLLMENT_RESULT_INVALID_CODE = 1;
+  FINISH_TOTP_ENROLLMENT_RESULT_NO_PENDING = 2;
+  FINISH_TOTP_ENROLLMENT_RESULT_ALREADY_ENABLED = 3;
+}
+message FinishTotpEnrollmentRequest { string code = 1; }
+message FinishTotpEnrollmentReply {
+  FinishTotpEnrollmentResult result = 1;
+  repeated string recovery_codes = 2; // only on SUCCESS
+}
+
+enum DisableMfaResult {
+  DISABLE_MFA_RESULT_SUCCESS = 0;
+  DISABLE_MFA_RESULT_INVALID_CODE = 1;
+  DISABLE_MFA_RESULT_NOT_ENABLED = 2;
+}
+message DisableMfaRequest { string code = 1; } // TOTP or recovery code
+message DisableMfaReply { DisableMfaResult result = 1; }
+
+message GetMfaStatusRequest {}
+message GetMfaStatusReply {
+  bool totp_enabled = 1;
+  uint32 remaining_recovery_codes = 2;
+}
+
+enum VerifyMfaLoginResult {
+  VERIFY_MFA_LOGIN_RESULT_SUCCESS = 0;
+  VERIFY_MFA_LOGIN_RESULT_INVALID_TOKEN = 1;
+  VERIFY_MFA_LOGIN_RESULT_INVALID_CODE = 2;
+}
+message VerifyMfaLoginRequest {
+  bytes mfa_token = 1;
+  string code = 2; // TOTP or recovery code
+}
+message VerifyMfaLoginReply {
+  VerifyMfaLoginResult result = 1;
+  optional string session_id = 2;
+}

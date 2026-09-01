@@ -41,6 +41,7 @@ enum LoginResult {
   LOGIN_RESULT_SUCCESS = 0;
   LOGIN_RESULT_WRONG_CREDENTIAL = 1;
   LOGIN_RESULT_NOT_FOUND = 2;
+  LOGIN_RESULT_REQUIRE_MFA = 3;
 }
 
 message LoginRequest {
@@ -53,6 +54,8 @@ message LoginReply {
   LoginResult result = 1;
   // Set only when result is SUCCESS.
   optional string session_id = 2;
+  // Set only when result is REQUIRE_MFA.
+  optional bytes mfa_token = 3;
 }
 
 message LogoutRequest {}

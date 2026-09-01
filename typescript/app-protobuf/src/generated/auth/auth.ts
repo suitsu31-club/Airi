@@ -60,6 +60,7 @@ export enum LoginResult {
   SUCCESS = 0,
   WRONG_CREDENTIAL = 1,
   NOT_FOUND = 2,
+  REQUIRE_MFA = 3,
   UNRECOGNIZED = -1,
 }
 
@@ -74,6 +75,9 @@ export function loginResultFromJSON(object: any): LoginResult {
     case 2:
     case "LOGIN_RESULT_NOT_FOUND":
       return LoginResult.NOT_FOUND;
+    case 3:
+    case "LOGIN_RESULT_REQUIRE_MFA":
+      return LoginResult.REQUIRE_MFA;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -89,6 +93,8 @@ export function loginResultToJSON(object: LoginResult): string {
       return "LOGIN_RESULT_WRONG_CREDENTIAL";
     case LoginResult.NOT_FOUND:
       return "LOGIN_RESULT_NOT_FOUND";
+    case LoginResult.REQUIRE_MFA:
+      return "LOGIN_RESULT_REQUIRE_MFA";
     case LoginResult.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
@@ -182,7 +188,11 @@ export interface LoginRequest {
 export interface LoginReply {
   result: LoginResult;
   /** Set only when result is SUCCESS. */
-  sessionId?: string | undefined;
+  sessionId?:
+    | string
+    | undefined;
+  /** Set only when result is REQUIRE_MFA. */
+  mfaToken?: Uint8Array | undefined;
 }
 
 export interface LogoutRequest {
@@ -497,7 +507,7 @@ export const LoginRequest: MessageFns<LoginRequest> = {
 };
 
 function createBaseLoginReply(): LoginReply {
-  return { result: 0, sessionId: undefined };
+  return { result: 0, sessionId: undefined, mfaToken: undefined };
 }
 
 export const LoginReply: MessageFns<LoginReply> = {
@@ -507,6 +517,9 @@ export const LoginReply: MessageFns<LoginReply> = {
     }
     if (message.sessionId !== undefined) {
       writer.uint32(18).string(message.sessionId);
+    }
+    if (message.mfaToken !== undefined) {
+      writer.uint32(26).bytes(message.mfaToken);
     }
     return writer;
   },
@@ -534,6 +547,14 @@ export const LoginReply: MessageFns<LoginReply> = {
           message.sessionId = reader.string();
           continue;
         }
+        case 3: {
+          if (tag !== 26) {
+            break;
+          }
+
+          message.mfaToken = reader.bytes();
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -551,6 +572,11 @@ export const LoginReply: MessageFns<LoginReply> = {
         : isSet(object.session_id)
         ? globalThis.String(object.session_id)
         : undefined,
+      mfaToken: isSet(object.mfaToken)
+        ? bytesFromBase64(object.mfaToken)
+        : isSet(object.mfa_token)
+        ? bytesFromBase64(object.mfa_token)
+        : undefined,
     };
   },
 
@@ -562,6 +588,9 @@ export const LoginReply: MessageFns<LoginReply> = {
     if (message.sessionId !== undefined) {
       obj.sessionId = message.sessionId;
     }
+    if (message.mfaToken !== undefined) {
+      obj.mfaToken = base64FromBytes(message.mfaToken);
+    }
     return obj;
   },
 
@@ -572,6 +601,7 @@ export const LoginReply: MessageFns<LoginReply> = {
     const message = createBaseLoginReply();
     message.result = object.result ?? 0;
     message.sessionId = object.sessionId ?? undefined;
+    message.mfaToken = object.mfaToken ?? undefined;
     return message;
   },
 };
@@ -1402,6 +1432,31 @@ export interface UserAuthClient<CallOptionsExt = {}> {
     request: DeepPartial<ChangePasswordRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<ChangePasswordReply>;
+}
+
+function bytesFromBase64(b64: string): Uint8Array {
+  if ((globalThis as any).Buffer) {
+    return Uint8Array.from((globalThis as any).Buffer.from(b64, "base64"));
+  } else {
+    const bin = globalThis.atob(b64);
+    const arr = new Uint8Array(bin.length);
+    for (let i = 0; i < bin.length; ++i) {
+      arr[i] = bin.charCodeAt(i);
+    }
+    return arr;
+  }
+}
+
+function base64FromBytes(arr: Uint8Array): string {
+  if ((globalThis as any).Buffer) {
+    return (globalThis as any).Buffer.from(arr).toString("base64");
+  } else {
+    const bin: string[] = [];
+    arr.forEach((byte) => {
+      bin.push(globalThis.String.fromCharCode(byte));
+    });
+    return globalThis.btoa(bin.join(""));
+  }
 }
 
 type Builtin = Date | Function | Uint8Array | string | number | boolean | bigint | undefined;

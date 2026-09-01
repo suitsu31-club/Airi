@@ -63,6 +63,7 @@ sha2 = { workspace = true }
 validator = { workspace = true }
 fast32 = { workspace = true }
 zeroize = { workspace = true }
+totp-rs = { workspace = true }
 
 # Error handling
 anyhow = { workspace = true }

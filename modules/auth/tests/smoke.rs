@@ -20,6 +20,10 @@ use auth::services::admin::{AdminService, BanUser, GrantInvitations, ListUsers};
 use auth::services::api_key::{ApiKeyService, CreateApiKey};
 use auth::services::invitation::{InvitationService, SendInvitation, SendInvitationResult};
 use auth::services::login::{Login, LoginResult, LoginService};
+use auth::services::mfa::{
+    DisableMfa, DisableMfaResult, FinishTotpEnrollment, FinishTotpEnrollmentResult, GetMfaStatus,
+    MfaService, StartTotpEnrollment, VerifyMfaLogin, VerifyMfaLoginResult,
+};
 use auth::services::profile::{GetMyCredit, GetMyProfile, ProfileService};
 use auth::services::session::SessionService;
 use auth::utils::identity::{ApiKeyVerify, IdentityVerifier, SessionIdVerify};
@@ -219,6 +223,7 @@ async fn smoke_end_to_end() {
         mq: mq.clone(),
         alg: alg.clone(),
         session: session.clone(),
+        redis: redis.clone(),
     };
     let api_key = ApiKeyService { db: db.clone() };
     let profile = ProfileService { db: db.clone() };
@@ -461,6 +466,148 @@ async fn smoke_end_to_end() {
             .await
             .expect("change pw wrong"),
         ChangePasswordResult::WrongPassword
+    ));
+
+    // ---- MFA (TOTP) round-trip (before the ban, while the account is active). ----
+    let mfa = MfaService {
+        db: db.clone(),
+        redis: redis.clone(),
+        session: session.clone(),
+        mq: mq.clone(),
+    };
+
+    // Start enrollment: secret + provisioning artifacts.
+    let start = mfa
+        .process(StartTotpEnrollment { user_id })
+        .await
+        .expect("start totp");
+    assert!(!start.secret_base32.is_empty());
+    assert!(
+        start.otpauth_uri.starts_with("otpauth://totp/"),
+        "unexpected otpauth uri: {}",
+        start.otpauth_uri
+    );
+    assert!(!start.qr_png_base64.is_empty());
+
+    // Compute a live code from the returned secret and finish enrollment.
+    let secret_bytes = totp_rs::Secret::try_from_base32(&start.secret_base32)
+        .expect("decode secret")
+        .as_bytes()
+        .to_vec();
+    let totp_code = || {
+        auth::utils::totp::build_totp(&secret_bytes, "e")
+            .expect("build totp")
+            .generate_current()
+            .to_string()
+    };
+    let recovery_codes = match mfa
+        .process(FinishTotpEnrollment {
+            user_id,
+            code: totp_code(),
+        })
+        .await
+        .expect("finish totp")
+    {
+        FinishTotpEnrollmentResult::Success(codes) => codes,
+        other => panic!("expected finish success, got {other:?}"),
+    };
+    assert_eq!(recovery_codes.len(), 10);
+
+    // A second enrollment attempt is rejected while TOTP is already enabled.
+    assert!(matches!(
+        mfa.process(FinishTotpEnrollment {
+            user_id,
+            code: totp_code(),
+        })
+        .await
+        .expect("finish totp again"),
+        FinishTotpEnrollmentResult::AlreadyEnabled
+    ));
+
+    let login_require_mfa = |password: &'static str| {
+        let login = login.clone();
+        let email = email.clone();
+        async move {
+            match login
+                .process(Login {
+                    identifier: email,
+                    password: password.into(),
+                    ip: "127.0.0.1".into(),
+                    user_agent: "test".into(),
+                })
+                .await
+                .expect("login require mfa")
+            {
+                LoginResult::RequireMfa(t) => t,
+                other => panic!("expected require mfa, got {other:?}"),
+            }
+        }
+    };
+
+    // Login now hands back an MFA token instead of a session.
+    let mfa_token = login_require_mfa("pw-correct-2").await;
+    assert!(matches!(
+        mfa.process(VerifyMfaLogin {
+            mfa_token,
+            code: totp_code(),
+        })
+        .await
+        .expect("verify mfa totp"),
+        VerifyMfaLoginResult::Success(_)
+    ));
+
+    // A recovery code also completes login, and is single-use.
+    let recovery = recovery_codes[0].clone();
+    let mfa_token = login_require_mfa("pw-correct-2").await;
+    assert!(matches!(
+        mfa.process(VerifyMfaLogin {
+            mfa_token,
+            code: recovery.clone(),
+        })
+        .await
+        .expect("verify mfa recovery"),
+        VerifyMfaLoginResult::Success(_)
+    ));
+    // Reusing the same recovery code fails.
+    let mfa_token = login_require_mfa("pw-correct-2").await;
+    assert!(matches!(
+        mfa.process(VerifyMfaLogin {
+            mfa_token,
+            code: recovery,
+        })
+        .await
+        .expect("verify mfa reuse"),
+        VerifyMfaLoginResult::InvalidCode
+    ));
+    // Status reflects the one consumed recovery code.
+    let status = mfa
+        .process(GetMfaStatus { user_id })
+        .await
+        .expect("mfa status");
+    assert!(status.totp_enabled);
+    assert_eq!(status.remaining_recovery_codes, 9);
+
+    // Disable MFA with a fresh TOTP code; login returns to Success.
+    assert!(matches!(
+        mfa.process(DisableMfa {
+            user_id,
+            code: totp_code(),
+        })
+        .await
+        .expect("disable mfa"),
+        DisableMfaResult::Success
+    ));
+    assert!(matches!(
+        login
+            .process(Login {
+                identifier: email.clone(),
+                password: "pw-correct-2".into(),
+                ip: "127.0.0.1".into(),
+                user_agent: "test".into(),
+            })
+            .await
+            .expect("login after disable"),
+        LoginResult::Success(_)
     ));
 
     // Admin: promote a second account, list users, ban the first.

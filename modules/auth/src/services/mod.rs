@@ -9,5 +9,6 @@ pub mod admin;
 pub mod api_key;
 pub mod invitation;
 pub mod login;
+pub mod mfa;
 pub mod profile;
 pub mod session;

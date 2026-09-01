@@ -4,16 +4,18 @@
 use super::Deps;
 use app_protobuf::admin::admin_manage_server::AdminManageServer;
 use app_protobuf::auth::invitation_server::InvitationServer;
+use app_protobuf::auth::mfa_server::MfaServer;
 use app_protobuf::auth::user_auth_server::UserAuthServer;
 use app_protobuf::auth::user_profile_server::UserProfileServer;
 use app_protobuf::messaging::notification_settings_server::NotificationSettingsServer;
 use auth::rpc::middleware::UserAuthLayer;
-use auth::rpc::{AdminRpc, InvitationRpc, UserAuthRpc, UserProfileRpc};
+use auth::rpc::{AdminRpc, InvitationRpc, MfaRpc, UserAuthRpc, UserProfileRpc};
 use auth::services::account::AccountService;
 use auth::services::admin::AdminService;
 use auth::services::api_key::ApiKeyService;
 use auth::services::invitation::InvitationService;
 use auth::services::login::LoginService;
+use auth::services::mfa::MfaService;
 use auth::services::profile::ProfileService;
 use auth::services::session::SessionService;
 use auth::utils::identity::IdentityVerifier;
@@ -41,6 +43,7 @@ pub async fn run(deps: Deps, addr: SocketAddr) -> anyhow::Result<()> {
         mq: mq.clone(),
         alg: alg.clone(),
         session: session.clone(),
+        redis: redis.clone(),
     };
     let api_key = ApiKeyService { db: db.clone() };
     let invitation = InvitationService {
@@ -68,6 +71,13 @@ pub async fn run(deps: Deps, addr: SocketAddr) -> anyhow::Result<()> {
     let user_profile = UserProfileRpc { profile, api_key };
     let invitation_rpc = InvitationRpc { invitation };
     let admin_rpc = AdminRpc { admin };
+    let mfa = MfaService {
+        db: db.clone(),
+        redis: redis.clone(),
+        session: session.clone(),
+        mq: mq.clone(),
+    };
+    let mfa_rpc = MfaRpc { mfa };
     let notification_rpc = NotificationRpc {
         settings: notification,
     };
@@ -80,6 +90,7 @@ pub async fn run(deps: Deps, addr: SocketAddr) -> anyhow::Result<()> {
         .add_service(InvitationServer::new(invitation_rpc))
         .add_service(AdminManageServer::new(admin_rpc))
         .add_service(NotificationSettingsServer::new(notification_rpc))
+        .add_service(MfaServer::new(mfa_rpc))
         .serve(addr)
         .await?;
     Ok(())

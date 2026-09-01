@@ -8,6 +8,7 @@ const PROTOS: &[&str] = &[
     "../../proto/shared/shared.proto",
     "../../proto/auth/auth.proto",
     "../../proto/auth/profile.proto",
+    "../../proto/auth/mfa.proto",
     "../../proto/auth/invitation.proto",
     "../../proto/auth/admin.proto",
     "../../proto/auth/internal.proto",

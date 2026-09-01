@@ -10,3 +10,4 @@ pub mod datetime;
 pub mod identity;
 pub mod password;
 pub mod rbac;
+pub mod totp;

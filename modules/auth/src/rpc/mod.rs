@@ -7,6 +7,7 @@
 pub mod admin;
 pub mod internal;
 pub mod invitation;
+pub mod mfa;
 pub mod middleware;
 pub mod profile;
 pub mod user_auth;
@@ -14,6 +15,7 @@ pub mod user_auth;
 pub use admin::AdminRpc;
 pub use internal::IdentityRpc;
 pub use invitation::InvitationRpc;
+pub use mfa::MfaRpc;
 pub use profile::UserProfileRpc;
 pub use user_auth::UserAuthRpc;
 
