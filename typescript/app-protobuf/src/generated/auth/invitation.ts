@@ -14,6 +14,11 @@ export enum SendInvitationResult {
   SENT = 0,
   NO_INVITATION_LEFT = 1,
   EMAIL_INVALID = 2,
+  /**
+   * ALREADY_REGISTERED - The email already belongs to a registered account, so no invitation is
+   * sent and no invitation slot is consumed.
+   */
+  ALREADY_REGISTERED = 3,
   UNRECOGNIZED = -1,
 }
 
@@ -28,6 +33,9 @@ export function sendInvitationResultFromJSON(object: any): SendInvitationResult 
     case 2:
     case "SEND_INVITATION_RESULT_EMAIL_INVALID":
       return SendInvitationResult.EMAIL_INVALID;
+    case 3:
+    case "SEND_INVITATION_RESULT_ALREADY_REGISTERED":
+      return SendInvitationResult.ALREADY_REGISTERED;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -43,6 +51,8 @@ export function sendInvitationResultToJSON(object: SendInvitationResult): string
       return "SEND_INVITATION_RESULT_NO_INVITATION_LEFT";
     case SendInvitationResult.EMAIL_INVALID:
       return "SEND_INVITATION_RESULT_EMAIL_INVALID";
+    case SendInvitationResult.ALREADY_REGISTERED:
+      return "SEND_INVITATION_RESULT_ALREADY_REGISTERED";
     case SendInvitationResult.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";
@@ -80,16 +90,6 @@ export function resendResultToJSON(object: ResendResult): string {
     default:
       return "UNRECOGNIZED";
   }
-}
-
-export interface CreateInvitationRequest {
-  count: number;
-  /** Owner of the minted invites; defaults to the caller when unset. */
-  owner?: string | undefined;
-}
-
-export interface CreateInvitationReply {
-  inviteTokens: string[];
 }
 
 export interface SendInvitationRequest {
@@ -133,146 +133,6 @@ export interface ListMyInvitationsReply {
   invites: InviteInfo[];
   pending: PendingInvitationInfo[];
 }
-
-function createBaseCreateInvitationRequest(): CreateInvitationRequest {
-  return { count: 0, owner: undefined };
-}
-
-export const CreateInvitationRequest: MessageFns<CreateInvitationRequest> = {
-  encode(message: CreateInvitationRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    if (message.count !== 0) {
-      writer.uint32(8).int32(message.count);
-    }
-    if (message.owner !== undefined) {
-      writer.uint32(18).string(message.owner);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): CreateInvitationRequest {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseCreateInvitationRequest();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 8) {
-            break;
-          }
-
-          message.count = reader.int32();
-          continue;
-        }
-        case 2: {
-          if (tag !== 18) {
-            break;
-          }
-
-          message.owner = reader.string();
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): CreateInvitationRequest {
-    return {
-      count: isSet(object.count) ? globalThis.Number(object.count) : 0,
-      owner: isSet(object.owner) ? globalThis.String(object.owner) : undefined,
-    };
-  },
-
-  toJSON(message: CreateInvitationRequest): unknown {
-    const obj: any = {};
-    if (message.count !== 0) {
-      obj.count = Math.round(message.count);
-    }
-    if (message.owner !== undefined) {
-      obj.owner = message.owner;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<CreateInvitationRequest>): CreateInvitationRequest {
-    return CreateInvitationRequest.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<CreateInvitationRequest>): CreateInvitationRequest {
-    const message = createBaseCreateInvitationRequest();
-    message.count = object.count ?? 0;
-    message.owner = object.owner ?? undefined;
-    return message;
-  },
-};
-
-function createBaseCreateInvitationReply(): CreateInvitationReply {
-  return { inviteTokens: [] };
-}
-
-export const CreateInvitationReply: MessageFns<CreateInvitationReply> = {
-  encode(message: CreateInvitationReply, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
-    for (const v of message.inviteTokens) {
-      writer.uint32(10).string(v!);
-    }
-    return writer;
-  },
-
-  decode(input: BinaryReader | Uint8Array, length?: number): CreateInvitationReply {
-    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
-    const end = length === undefined ? reader.len : reader.pos + length;
-    const message = createBaseCreateInvitationReply();
-    while (reader.pos < end) {
-      const tag = reader.uint32();
-      switch (tag >>> 3) {
-        case 1: {
-          if (tag !== 10) {
-            break;
-          }
-
-          message.inviteTokens.push(reader.string());
-          continue;
-        }
-      }
-      if ((tag & 7) === 4 || tag === 0) {
-        break;
-      }
-      reader.skip(tag & 7);
-    }
-    return message;
-  },
-
-  fromJSON(object: any): CreateInvitationReply {
-    return {
-      inviteTokens: globalThis.Array.isArray(object?.inviteTokens)
-        ? object.inviteTokens.map((e: any) => globalThis.String(e))
-        : globalThis.Array.isArray(object?.invite_tokens)
-        ? object.invite_tokens.map((e: any) => globalThis.String(e))
-        : [],
-    };
-  },
-
-  toJSON(message: CreateInvitationReply): unknown {
-    const obj: any = {};
-    if (message.inviteTokens?.length) {
-      obj.inviteTokens = message.inviteTokens;
-    }
-    return obj;
-  },
-
-  create(base?: DeepPartial<CreateInvitationReply>): CreateInvitationReply {
-    return CreateInvitationReply.fromPartial(base ?? {});
-  },
-  fromPartial(object: DeepPartial<CreateInvitationReply>): CreateInvitationReply {
-    const message = createBaseCreateInvitationReply();
-    message.inviteTokens = object.inviteTokens?.map((e) => e) || [];
-    return message;
-  },
-};
 
 function createBaseSendInvitationRequest(): SendInvitationRequest {
   return { email: "" };
@@ -965,14 +825,6 @@ export const InvitationDefinition = {
   name: "Invitation",
   fullName: "airi.auth.Invitation",
   methods: {
-    createInvitation: {
-      name: "CreateInvitation",
-      requestType: CreateInvitationRequest as typeof CreateInvitationRequest,
-      requestStream: false,
-      responseType: CreateInvitationReply as typeof CreateInvitationReply,
-      responseStream: false,
-      options: {},
-    },
     sendInvitation: {
       name: "SendInvitation",
       requestType: SendInvitationRequest as typeof SendInvitationRequest,
@@ -1001,10 +853,6 @@ export const InvitationDefinition = {
 } as const;
 
 export interface InvitationServiceImplementation<CallContextExt = {}> {
-  createInvitation(
-    request: CreateInvitationRequest,
-    context: CallContext & CallContextExt,
-  ): Promise<DeepPartial<CreateInvitationReply>>;
   sendInvitation(
     request: SendInvitationRequest,
     context: CallContext & CallContextExt,
@@ -1020,10 +868,6 @@ export interface InvitationServiceImplementation<CallContextExt = {}> {
 }
 
 export interface InvitationClient<CallOptionsExt = {}> {
-  createInvitation(
-    request: DeepPartial<CreateInvitationRequest>,
-    options?: CallOptions & CallOptionsExt,
-  ): Promise<CreateInvitationReply>;
   sendInvitation(
     request: DeepPartial<SendInvitationRequest>,
     options?: CallOptions & CallOptionsExt,

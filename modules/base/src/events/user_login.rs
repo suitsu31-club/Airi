@@ -8,13 +8,7 @@ use wakuwaku::amqp::{AmqpExchangeType, AmqpMessageSend, AmqpRouting};
 /// Consumed by: `messaging` (send a login-notification email when enabled).
 /// Route: exchange `auth`, key `user_login`.
 #[derive(
-    Debug,
-    Clone,
-    rkyv::Archive,
-    rkyv::Serialize,
-    rkyv::Deserialize,
-    RkyvMessageSer,
-    RkyvMessageDe,
+    Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, RkyvMessageSer, RkyvMessageDe,
 )]
 pub struct UserLoginEvent {
     /// The account that logged in.

@@ -11,15 +11,9 @@ pub struct AuthConfig {
     pub session_refresh_ttl_secs: u64,
     /// Absolute session lifespan in seconds (hard cap regardless of refresh).
     pub session_absolute_lifespan_secs: u64,
-    /// Whether open (invite-less) registration is permitted.
-    pub registration_open: bool,
-    /// Invitations granted to a newly registered member.
-    pub default_invitation_count: i32,
-    /// How long a minted invite remains valid before expiring.
+    /// How long a sent (pending) invitation stays valid before it expires and
+    /// its slot returns to the sender as `Free`.
     pub invitation_expiry_secs: u64,
-    /// How long a pending (sent) invitation is held before it is released and
-    /// the sender's invitation count refunded.
-    pub pending_invitation_release_secs: u64,
 }
 
 impl Default for AuthConfig {
@@ -27,10 +21,7 @@ impl Default for AuthConfig {
         Self {
             session_refresh_ttl_secs: 604_800,
             session_absolute_lifespan_secs: 2_592_000,
-            registration_open: false,
-            default_invitation_count: 0,
             invitation_expiry_secs: 1_209_600,
-            pending_invitation_release_secs: 259_200,
         }
     }
 }

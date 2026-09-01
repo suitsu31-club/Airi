@@ -16,7 +16,9 @@ use wakuwaku::sqlx::DatabaseProcessor;
 async fn deps() -> (DatabaseProcessor, AmqpPool) {
     let db_url = std::env::var("DATABASE_URL").expect("DATABASE_URL");
     let mq_url = std::env::var("MQ_URL").expect("MQ_URL");
-    let pool = base::db::connect_pool(&db_url).await.expect("connect postgres");
+    let pool = base::db::connect_pool(&db_url)
+        .await
+        .expect("connect postgres");
     let db = DatabaseProcessor::from_pool(pool);
     let args =
         amqprs::connection::OpenConnectionArguments::try_from(mq_url.as_str()).expect("mq url");
@@ -35,9 +37,12 @@ async fn consumer_applies_credit_change() {
     let channel = <CreditHook as AmqpMessageProcessor<CreditChangeEvent>>::ensure_queue(&mq)
         .await
         .expect("ensure queue");
-    setup_consumer::<CreditChangeEvent, CreditHook>(&channel, Arc::new(CreditHook { db: db.clone() }))
-        .await
-        .expect("setup consumer");
+    setup_consumer::<CreditChangeEvent, CreditHook>(
+        &channel,
+        Arc::new(CreditHook { db: db.clone() }),
+    )
+    .await
+    .expect("setup consumer");
 
     let tag = uuid::Uuid::new_v4().simple().to_string();
     let user_id = AccountId(uuid::Uuid::new_v4());
@@ -82,5 +87,8 @@ async fn consumer_applies_credit_change() {
     }
     // Keep the channel alive until the assertion (dropping cancels the consumer).
     drop(channel);
-    assert!(applied, "consumer did not apply the credit change within 10s");
+    assert!(
+        applied,
+        "consumer did not apply the credit change within 10s"
+    );
 }

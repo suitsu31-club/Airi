@@ -4,26 +4,18 @@ package airi.auth;
 
 // Invitation minting and sending.
 service Invitation {
-  rpc CreateInvitation(CreateInvitationRequest) returns (CreateInvitationReply);
   rpc SendInvitation(SendInvitationRequest) returns (SendInvitationReply);
   rpc ResendInvitationEmail(ResendInvitationEmailRequest) returns (ResendInvitationEmailReply);
   rpc ListMyInvitations(ListMyInvitationsRequest) returns (ListMyInvitationsReply);
-}
-
-message CreateInvitationRequest {
-  int32 count = 1;
-  // Owner of the minted invites; defaults to the caller when unset.
-  optional string owner = 2;
-}
-
-message CreateInvitationReply {
-  repeated string invite_tokens = 1;
 }
 
 enum SendInvitationResult {
   SEND_INVITATION_RESULT_SENT = 0;
   SEND_INVITATION_RESULT_NO_INVITATION_LEFT = 1;
   SEND_INVITATION_RESULT_EMAIL_INVALID = 2;
+  // The email already belongs to a registered account, so no invitation is
+  // sent and no invitation slot is consumed.
+  SEND_INVITATION_RESULT_ALREADY_REGISTERED = 3;
 }
 
 message SendInvitationRequest {

@@ -8,13 +8,7 @@ use wakuwaku::amqp::{AmqpExchangeType, AmqpMessageSend, AmqpRouting};
 /// Consumed by: `auth` (record suspense status; terminate sessions on ban).
 /// Route: exchange `moderation`, key `system_ban`.
 #[derive(
-    Debug,
-    Clone,
-    rkyv::Archive,
-    rkyv::Serialize,
-    rkyv::Deserialize,
-    RkyvMessageSer,
-    RkyvMessageDe,
+    Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, RkyvMessageSer, RkyvMessageDe,
 )]
 pub struct SystemBanEvent {
     /// The account being banned or unbanned.

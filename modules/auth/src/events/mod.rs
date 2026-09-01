@@ -17,13 +17,7 @@ const CRON_CADENCE_SECS: i64 = 3_600;
 /// Published by: the `cron` worker. Consumed by: `AuthCronHook`.
 /// Route: exchange `auth_cron`, key `session_cleanup`.
 #[derive(
-    Debug,
-    Clone,
-    rkyv::Archive,
-    rkyv::Serialize,
-    rkyv::Deserialize,
-    RkyvMessageSer,
-    RkyvMessageDe,
+    Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, RkyvMessageSer, RkyvMessageDe,
 )]
 pub struct SessionCleanupSignal {
     /// Tick time (unix seconds).
@@ -58,13 +52,7 @@ impl IntervalJobExecutionSignal for SessionCleanupSignal {
 /// Published by: the `cron` worker. Consumed by: `AuthCronHook`.
 /// Route: exchange `auth_cron`, key `invitation_expiry`.
 #[derive(
-    Debug,
-    Clone,
-    rkyv::Archive,
-    rkyv::Serialize,
-    rkyv::Deserialize,
-    RkyvMessageSer,
-    RkyvMessageDe,
+    Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, RkyvMessageSer, RkyvMessageDe,
 )]
 pub struct InvitationExpiryCleanupSignal {
     /// Tick time (unix seconds).

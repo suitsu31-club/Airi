@@ -1,0 +1,24 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "SELECT count(*) AS \"count!\" FROM auth.invite\n               WHERE owner = $1 AND status = 'free'\n                 AND (will_expire_at IS NULL OR will_expire_at > $2)",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "count!",
+        "type_info": "Int8",
+        "origin": "Expression"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid",
+        "Timestamp"
+      ]
+    },
+    "nullable": [
+      null
+    ]
+  },
+  "hash": "db683c78e2b988af67d798466fc895b38cc71098844fb7da6ceb1fd07db72079"
+}

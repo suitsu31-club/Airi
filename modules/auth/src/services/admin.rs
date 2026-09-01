@@ -5,15 +5,19 @@ use crate::entities::db::admin_operation_log::{
     self as db_audit, AddAuditLog, AdminOperationLogEntity,
 };
 use crate::entities::db::admin_view::{AdminUserRow, GetAdminUser, ListAdminUsers};
-use crate::entities::db::membership::{
-    self as db_membership, AdminRole, FindMembershipByAccount, SetAdminRole,
+use crate::entities::db::invite::{
+    CountFreeInvitesByOwner, CreateInvite, ExpirePendingInvitationsByInvite,
+    InvalidateInvite as DbInvalidateInvite, InviteId, InviteStatus, generate_invite_token,
 };
+use crate::entities::db::membership::{AdminRole, FindMembershipByAccount, SetAdminRole};
 use crate::entities::db::suspense::{InsertSuspense, SuspenseStatus};
 use crate::services::session::{SessionService, TerminateAllSessions};
+use crate::utils::datetime::now_primitive;
 use crate::utils::rbac::AdminOperation;
 use base::config_provider::{get_config_value, set_config_value};
 use kanau::processor::Processor;
 use serde_json::json;
+use time::Duration;
 use wakuwaku::redis::RedisConnection;
 use wakuwaku::sqlx::DatabaseProcessor;
 
@@ -115,8 +119,11 @@ pub struct BanUser {
 }
 
 impl AdminOperation for BanUser {
-    const ALLOWED_ROLES: &'static [AdminRole] =
-        &[AdminRole::SiteOwner, AdminRole::Maintainer, AdminRole::Moderator];
+    const ALLOWED_ROLES: &'static [AdminRole] = &[
+        AdminRole::SiteOwner,
+        AdminRole::Maintainer,
+        AdminRole::Moderator,
+    ];
     const OPERATION_NAME: &'static str = "ban_user";
     fn audit_content(&self) -> serde_json::Value {
         json!({ "target": self.target.0, "reason": self.reason })
@@ -158,8 +165,11 @@ pub struct UnbanUser {
 }
 
 impl AdminOperation for UnbanUser {
-    const ALLOWED_ROLES: &'static [AdminRole] =
-        &[AdminRole::SiteOwner, AdminRole::Maintainer, AdminRole::Moderator];
+    const ALLOWED_ROLES: &'static [AdminRole] = &[
+        AdminRole::SiteOwner,
+        AdminRole::Maintainer,
+        AdminRole::Moderator,
+    ];
     const OPERATION_NAME: &'static str = "unban_user";
     fn audit_content(&self) -> serde_json::Value {
         json!({ "target": self.target.0 })
@@ -183,8 +193,12 @@ impl Processor<UnbanUser> for AdminService {
                 operated_by: Some(input.actor),
             })
             .await?;
-        self.audit(input.actor, UnbanUser::OPERATION_NAME, input.audit_content())
-            .await?;
+        self.audit(
+            input.actor,
+            UnbanUser::OPERATION_NAME,
+            input.audit_content(),
+        )
+        .await?;
         Ok(())
     }
 }
@@ -197,8 +211,11 @@ pub struct SetUserRole {
 }
 
 impl AdminOperation for SetUserRole {
-    const ALLOWED_ROLES: &'static [AdminRole] =
-        &[AdminRole::SiteOwner, AdminRole::Maintainer, AdminRole::Moderator];
+    const ALLOWED_ROLES: &'static [AdminRole] = &[
+        AdminRole::SiteOwner,
+        AdminRole::Maintainer,
+        AdminRole::Moderator,
+    ];
     const OPERATION_NAME: &'static str = "set_user_role";
     fn audit_content(&self) -> serde_json::Value {
         json!({ "target": self.target.0, "role": self.role.map(|r| r.as_str()) })
@@ -230,30 +247,38 @@ impl Processor<SetUserRole> for AdminService {
                 role: input.role,
             })
             .await?;
-        self.audit(input.actor, SetUserRole::OPERATION_NAME, input.audit_content())
-            .await?;
+        self.audit(
+            input.actor,
+            SetUserRole::OPERATION_NAME,
+            input.audit_content(),
+        )
+        .await?;
         Ok(())
     }
 }
 
-/// Grant additional invitations to a user.
+/// Grant a user invitation slots (`Free` invites), optionally with an expiry.
 pub struct GrantInvitations {
     pub actor: AccountId,
     pub target: AccountId,
     pub count: i32,
+    pub expire_in_secs: Option<u64>,
 }
 
 impl AdminOperation for GrantInvitations {
-    const ALLOWED_ROLES: &'static [AdminRole] =
-        &[AdminRole::SiteOwner, AdminRole::Maintainer, AdminRole::Moderator];
+    const ALLOWED_ROLES: &'static [AdminRole] = &[AdminRole::SiteOwner, AdminRole::Moderator];
     const OPERATION_NAME: &'static str = "grant_invitations";
     fn audit_content(&self) -> serde_json::Value {
-        json!({ "target": self.target.0, "count": self.count })
+        json!({
+            "target": self.target.0,
+            "count": self.count,
+            "expire_in_secs": self.expire_in_secs,
+        })
     }
 }
 
 impl Processor<GrantInvitations> for AdminService {
-    type Output = i32;
+    type Output = i64;
     type Error = wakuwaku::Error;
     #[tracing::instrument(skip_all, err, name = "Service:GrantInvitations")]
     async fn process(&self, input: GrantInvitations) -> Result<Self::Output, Self::Error> {
@@ -261,21 +286,83 @@ impl Processor<GrantInvitations> for AdminService {
         if !GrantInvitations::is_allowed(role) {
             return Err(wakuwaku::Error::PermissionsDenied);
         }
-        let new_count = self
-            .db
-            .process(db_membership::GrantInvitations {
-                account: input.target,
-                count: input.count,
-            })
-            .await?
-            .ok_or(wakuwaku::Error::NotFound)?;
+        if input.count <= 0 {
+            return Err(wakuwaku::Error::InvalidInput);
+        }
+        let now = now_primitive();
+        let will_expire_at = input
+            .expire_in_secs
+            .map(|s| now + Duration::seconds(s as i64));
+        for _ in 0..input.count {
+            self.db
+                .process(CreateInvite {
+                    owner: input.target,
+                    invite_token: generate_invite_token(),
+                    status: InviteStatus::Free,
+                    source: "admin_grant".to_string(),
+                    will_expire_at,
+                })
+                .await?;
+        }
         self.audit(
             input.actor,
             GrantInvitations::OPERATION_NAME,
             input.audit_content(),
         )
         .await?;
-        Ok(new_count)
+        self.db
+            .process(CountFreeInvitesByOwner {
+                owner: input.target,
+                now,
+            })
+            .await
+            .map_err(Into::into)
+    }
+}
+
+/// Invalidate an invite slot, permitted only when it is `Free` or `Pending`.
+pub struct InvalidateInvite {
+    pub actor: AccountId,
+    pub invite_id: i64,
+}
+
+impl AdminOperation for InvalidateInvite {
+    const ALLOWED_ROLES: &'static [AdminRole] = &[AdminRole::SiteOwner, AdminRole::Moderator];
+    const OPERATION_NAME: &'static str = "invalidate_invite";
+    fn audit_content(&self) -> serde_json::Value {
+        json!({ "invite_id": self.invite_id })
+    }
+}
+
+impl Processor<InvalidateInvite> for AdminService {
+    type Output = bool;
+    type Error = wakuwaku::Error;
+    #[tracing::instrument(skip_all, err, name = "Service:InvalidateInvite")]
+    async fn process(&self, input: InvalidateInvite) -> Result<Self::Output, Self::Error> {
+        let role = self.role_of(input.actor).await?;
+        if !InvalidateInvite::is_allowed(role) {
+            return Err(wakuwaku::Error::PermissionsDenied);
+        }
+        let invite_id = InviteId(input.invite_id);
+        let Some(prev) = self
+            .db
+            .process(DbInvalidateInvite { id: invite_id })
+            .await?
+        else {
+            return Ok(false);
+        };
+        if matches!(prev, InviteStatus::Pending) {
+            self.db
+                .process(ExpirePendingInvitationsByInvite { invite: invite_id })
+                .await?;
+        }
+        self.audit(
+            input.actor,
+            InvalidateInvite::OPERATION_NAME,
+            input.audit_content(),
+        )
+        .await?;
+        Ok(true)
     }
 }
 
@@ -325,8 +412,8 @@ impl Processor<SetServerConfig> for AdminService {
         if !SetServerConfig::is_allowed(role) {
             return Err(wakuwaku::Error::PermissionsDenied);
         }
-        let value: serde_json::Value = serde_json::from_str(&input.value)
-            .map_err(|_| wakuwaku::Error::InvalidInput)?;
+        let value: serde_json::Value =
+            serde_json::from_str(&input.value).map_err(|_| wakuwaku::Error::InvalidInput)?;
         set_config_value(self.db.db(), &mut self.redis.clone(), &input.key, &value).await?;
         self.audit(
             input.actor,

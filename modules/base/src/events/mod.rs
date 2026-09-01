@@ -9,12 +9,14 @@
 //! and implements `AmqpRouting` + `AmqpMessageSend` from `wakuwaku::amqp`.
 
 pub mod credit_change;
+pub mod invitation_accepted;
 pub mod invitation_sent;
 pub mod system_ban;
 pub mod user_login;
 pub mod user_registered;
 
 pub use credit_change::CreditChangeEvent;
+pub use invitation_accepted::InvitationAcceptedEvent;
 pub use invitation_sent::InvitationSentEvent;
 pub use system_ban::SystemBanEvent;
 pub use user_login::UserLoginEvent;

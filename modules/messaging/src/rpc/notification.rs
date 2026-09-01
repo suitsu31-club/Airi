@@ -1,7 +1,8 @@
 //! gRPC adapter for `airi.messaging.NotificationSettings`.
 
 use crate::services::notification::{
-    GetNotificationSettings, NotificationPrefs, NotificationSettingsService, SetNotificationSettings,
+    GetNotificationSettings, NotificationPrefs, NotificationSettingsService,
+    SetNotificationSettings,
 };
 use app_protobuf::messaging::notification_settings_server::NotificationSettings;
 use app_protobuf::{messaging as pb, shared};

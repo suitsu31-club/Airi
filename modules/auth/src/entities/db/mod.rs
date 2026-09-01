@@ -39,13 +39,13 @@
 //! ```
 
 pub mod account;
-pub mod suspense;
-pub mod membership;
-pub mod credit;
-pub mod invite;
 pub mod admin_operation_log;
-pub mod sessions;
 pub mod admin_view;
 pub mod api_key;
-pub mod totp;
+pub mod credit;
+pub mod invite;
+pub mod membership;
 pub mod passkey;
+pub mod sessions;
+pub mod suspense;
+pub mod totp;

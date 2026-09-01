@@ -1,0 +1,14 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE auth.invite\n                   SET status = 'free', will_expire_at = NULL, last_status_change = now()\n                   WHERE id = ANY($1) AND status = 'pending'",
+  "describe": {
+    "columns": [],
+    "parameters": {
+      "Left": [
+        "Int8Array"
+      ]
+    },
+    "nullable": []
+  },
+  "hash": "3f4c98188dd02c0453a0bf5184c44bfa8b2df2ef6d7f18ce465bc58629a38e52"
+}

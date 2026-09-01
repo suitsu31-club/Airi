@@ -8,13 +8,7 @@ use wakuwaku::amqp::{AmqpExchangeType, AmqpMessageSend, AmqpRouting};
 /// Consumed by: `messaging` (initialise per-user notification settings).
 /// Route: exchange `auth`, key `user_registered`.
 #[derive(
-    Debug,
-    Clone,
-    rkyv::Archive,
-    rkyv::Serialize,
-    rkyv::Deserialize,
-    RkyvMessageSer,
-    RkyvMessageDe,
+    Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, RkyvMessageSer, RkyvMessageDe,
 )]
 pub struct UserRegisteredEvent {
     /// The newly created account id.

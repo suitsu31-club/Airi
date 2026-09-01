@@ -6,8 +6,8 @@ use crate::entities::db::membership::AdminRole;
 use crate::rpc::middleware::UserId;
 use crate::rpc::parse_uuid;
 use crate::services::admin::{
-    AdminService, BanUser, GetServerConfig, GetUser, GrantInvitations, ListAuditLogs, ListUsers,
-    SetServerConfig, SetUserRole, UnbanUser,
+    AdminService, BanUser, GetServerConfig, GetUser, GrantInvitations, InvalidateInvite,
+    ListAuditLogs, ListUsers, SetServerConfig, SetUserRole, UnbanUser,
 };
 use crate::utils::datetime::to_unix;
 use app_protobuf::admin::admin_manage_server::AdminManage;
@@ -142,9 +142,26 @@ impl AdminManage for AdminRpc {
                 actor: AccountId(user.0),
                 target: AccountId(target),
                 count: req.count,
+                expire_in_secs: req.expire_in_secs,
+            })
+            .await? as i32;
+        Ok(Response::new(pb::GrantInvitationsReply { new_count }))
+    }
+
+    async fn invalidate_invite(
+        &self,
+        request: Request<pb::InvalidateInviteRequest>,
+    ) -> Result<Response<pb::InvalidateInviteReply>, Status> {
+        let user = UserId::from_request(&request)?;
+        let req = request.into_inner();
+        let invalidated = self
+            .admin
+            .process(InvalidateInvite {
+                actor: AccountId(user.0),
+                invite_id: req.invite_id,
             })
             .await?;
-        Ok(Response::new(pb::GrantInvitationsReply { new_count }))
+        Ok(Response::new(pb::InvalidateInviteReply { invalidated }))
     }
 
     async fn get_server_config(

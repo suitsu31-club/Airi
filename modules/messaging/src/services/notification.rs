@@ -11,8 +11,11 @@ use wakuwaku::sqlx::DatabaseProcessor;
 /// A user's notification preferences.
 #[derive(Debug, Clone, Copy)]
 pub struct NotificationPrefs {
+    /// Email the user on every new sign-in.
     pub send_login_email: bool,
+    /// Email the user when someone registers using one of their invitations.
     pub send_invitation_email: bool,
+    /// Include the user in marketing emails.
     pub receive_marketing_email: bool,
 }
 
@@ -51,11 +54,13 @@ impl Processor<GetNotificationSettings> for NotificationSettingsService {
             .db
             .process(FindNotificationSettingsById { id: input.user_id })
             .await?;
-        Ok(settings.map_or_else(NotificationPrefs::default, |s| NotificationPrefs {
-            send_login_email: s.send_login_email,
-            send_invitation_email: s.send_invitation_email,
-            receive_marketing_email: s.receive_marketing_email,
-        }))
+        Ok(
+            settings.map_or_else(NotificationPrefs::default, |s| NotificationPrefs {
+                send_login_email: s.send_login_email,
+                send_invitation_email: s.send_invitation_email,
+                receive_marketing_email: s.receive_marketing_email,
+            }),
+        )
     }
 }
 

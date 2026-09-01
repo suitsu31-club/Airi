@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+  <body style="font-family: sans-serif;">
+    {% if !logo_url.is_empty() %}
+    <img src="{{ logo_url }}" alt="{{ site_name }}" style="max-height: 48px;" />
+    {% endif %}
+    <h1>Your invitation was accepted</h1>
+    <p><strong>{{ new_member_username }}</strong> has joined {{ site_name }} using your invitation.</p>
+    {% if !site_url.is_empty() %}
+    <p><a href="{{ site_url }}">Open {{ site_name }}</a></p>
+    {% endif %}
+    <p>You are receiving this because invitation notifications are enabled in your notification settings.</p>
+  </body>
+</html>

@@ -11,8 +11,11 @@ service NotificationSettings {
 }
 
 message NotificationSettingsData {
+  // Email me on every new sign-in to my account.
   bool send_login_email = 1;
+  // Email me when someone registers using one of my invitations.
   bool send_invitation_email = 2;
+  // Include me in occasional product/marketing emails.
   bool receive_marketing_email = 3;
 }
 

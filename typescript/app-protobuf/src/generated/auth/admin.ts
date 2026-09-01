@@ -56,10 +56,22 @@ export interface SetUserRoleRequest {
 export interface GrantInvitationsRequest {
   userId: string;
   count: number;
+  /** Optional slot expiry in seconds; unset means the slots never expire. */
+  expireInSecs?: bigint | undefined;
 }
 
 export interface GrantInvitationsReply {
+  /** The target's available (Free) slot count after the grant. */
   newCount: number;
+}
+
+export interface InvalidateInviteRequest {
+  inviteId: bigint;
+}
+
+export interface InvalidateInviteReply {
+  /** True when the invite was Free or Pending and is now invalidated. */
+  invalidated: boolean;
 }
 
 export interface GetServerConfigRequest {
@@ -753,7 +765,7 @@ export const SetUserRoleRequest: MessageFns<SetUserRoleRequest> = {
 };
 
 function createBaseGrantInvitationsRequest(): GrantInvitationsRequest {
-  return { userId: "", count: 0 };
+  return { userId: "", count: 0, expireInSecs: undefined };
 }
 
 export const GrantInvitationsRequest: MessageFns<GrantInvitationsRequest> = {
@@ -763,6 +775,12 @@ export const GrantInvitationsRequest: MessageFns<GrantInvitationsRequest> = {
     }
     if (message.count !== 0) {
       writer.uint32(16).int32(message.count);
+    }
+    if (message.expireInSecs !== undefined) {
+      if (BigInt.asUintN(64, message.expireInSecs) !== message.expireInSecs) {
+        throw new globalThis.Error("value provided for field message.expireInSecs of type uint64 too large");
+      }
+      writer.uint32(24).uint64(message.expireInSecs);
     }
     return writer;
   },
@@ -790,6 +808,14 @@ export const GrantInvitationsRequest: MessageFns<GrantInvitationsRequest> = {
           message.count = reader.int32();
           continue;
         }
+        case 3: {
+          if (tag !== 24) {
+            break;
+          }
+
+          message.expireInSecs = reader.uint64() as bigint;
+          continue;
+        }
       }
       if ((tag & 7) === 4 || tag === 0) {
         break;
@@ -807,6 +833,11 @@ export const GrantInvitationsRequest: MessageFns<GrantInvitationsRequest> = {
         ? globalThis.String(object.user_id)
         : "",
       count: isSet(object.count) ? globalThis.Number(object.count) : 0,
+      expireInSecs: isSet(object.expireInSecs)
+        ? BigInt(object.expireInSecs)
+        : isSet(object.expire_in_secs)
+        ? BigInt(object.expire_in_secs)
+        : undefined,
     };
   },
 
@@ -818,6 +849,9 @@ export const GrantInvitationsRequest: MessageFns<GrantInvitationsRequest> = {
     if (message.count !== 0) {
       obj.count = Math.round(message.count);
     }
+    if (message.expireInSecs !== undefined) {
+      obj.expireInSecs = message.expireInSecs.toString();
+    }
     return obj;
   },
 
@@ -828,6 +862,9 @@ export const GrantInvitationsRequest: MessageFns<GrantInvitationsRequest> = {
     const message = createBaseGrantInvitationsRequest();
     message.userId = object.userId ?? "";
     message.count = object.count ?? 0;
+    message.expireInSecs = (object.expireInSecs !== undefined && object.expireInSecs !== null)
+      ? BigInt(object.expireInSecs)
+      : undefined;
     return message;
   },
 };
@@ -892,6 +929,131 @@ export const GrantInvitationsReply: MessageFns<GrantInvitationsReply> = {
   fromPartial(object: DeepPartial<GrantInvitationsReply>): GrantInvitationsReply {
     const message = createBaseGrantInvitationsReply();
     message.newCount = object.newCount ?? 0;
+    return message;
+  },
+};
+
+function createBaseInvalidateInviteRequest(): InvalidateInviteRequest {
+  return { inviteId: 0n };
+}
+
+export const InvalidateInviteRequest: MessageFns<InvalidateInviteRequest> = {
+  encode(message: InvalidateInviteRequest, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.inviteId !== 0n) {
+      if (BigInt.asIntN(64, message.inviteId) !== message.inviteId) {
+        throw new globalThis.Error("value provided for field message.inviteId of type int64 too large");
+      }
+      writer.uint32(8).int64(message.inviteId);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): InvalidateInviteRequest {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseInvalidateInviteRequest();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.inviteId = reader.int64() as bigint;
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): InvalidateInviteRequest {
+    return {
+      inviteId: isSet(object.inviteId)
+        ? BigInt(object.inviteId)
+        : isSet(object.invite_id)
+        ? BigInt(object.invite_id)
+        : 0n,
+    };
+  },
+
+  toJSON(message: InvalidateInviteRequest): unknown {
+    const obj: any = {};
+    if (message.inviteId !== 0n) {
+      obj.inviteId = message.inviteId.toString();
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<InvalidateInviteRequest>): InvalidateInviteRequest {
+    return InvalidateInviteRequest.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<InvalidateInviteRequest>): InvalidateInviteRequest {
+    const message = createBaseInvalidateInviteRequest();
+    message.inviteId = (object.inviteId !== undefined && object.inviteId !== null) ? BigInt(object.inviteId) : 0n;
+    return message;
+  },
+};
+
+function createBaseInvalidateInviteReply(): InvalidateInviteReply {
+  return { invalidated: false };
+}
+
+export const InvalidateInviteReply: MessageFns<InvalidateInviteReply> = {
+  encode(message: InvalidateInviteReply, writer: BinaryWriter = new BinaryWriter()): BinaryWriter {
+    if (message.invalidated !== false) {
+      writer.uint32(8).bool(message.invalidated);
+    }
+    return writer;
+  },
+
+  decode(input: BinaryReader | Uint8Array, length?: number): InvalidateInviteReply {
+    const reader = input instanceof BinaryReader ? input : new BinaryReader(input);
+    const end = length === undefined ? reader.len : reader.pos + length;
+    const message = createBaseInvalidateInviteReply();
+    while (reader.pos < end) {
+      const tag = reader.uint32();
+      switch (tag >>> 3) {
+        case 1: {
+          if (tag !== 8) {
+            break;
+          }
+
+          message.invalidated = reader.bool();
+          continue;
+        }
+      }
+      if ((tag & 7) === 4 || tag === 0) {
+        break;
+      }
+      reader.skip(tag & 7);
+    }
+    return message;
+  },
+
+  fromJSON(object: any): InvalidateInviteReply {
+    return { invalidated: isSet(object.invalidated) ? globalThis.Boolean(object.invalidated) : false };
+  },
+
+  toJSON(message: InvalidateInviteReply): unknown {
+    const obj: any = {};
+    if (message.invalidated !== false) {
+      obj.invalidated = message.invalidated;
+    }
+    return obj;
+  },
+
+  create(base?: DeepPartial<InvalidateInviteReply>): InvalidateInviteReply {
+    return InvalidateInviteReply.fromPartial(base ?? {});
+  },
+  fromPartial(object: DeepPartial<InvalidateInviteReply>): InvalidateInviteReply {
+    const message = createBaseInvalidateInviteReply();
+    message.invalidated = object.invalidated ?? false;
     return message;
   },
 };
@@ -1422,6 +1584,14 @@ export const AdminManageDefinition = {
       responseStream: false,
       options: {},
     },
+    invalidateInvite: {
+      name: "InvalidateInvite",
+      requestType: InvalidateInviteRequest as typeof InvalidateInviteRequest,
+      requestStream: false,
+      responseType: InvalidateInviteReply as typeof InvalidateInviteReply,
+      responseStream: false,
+      options: {},
+    },
     getServerConfig: {
       name: "GetServerConfig",
       requestType: GetServerConfigRequest as typeof GetServerConfigRequest,
@@ -1459,6 +1629,10 @@ export interface AdminManageServiceImplementation<CallContextExt = {}> {
     request: GrantInvitationsRequest,
     context: CallContext & CallContextExt,
   ): Promise<DeepPartial<GrantInvitationsReply>>;
+  invalidateInvite(
+    request: InvalidateInviteRequest,
+    context: CallContext & CallContextExt,
+  ): Promise<DeepPartial<InvalidateInviteReply>>;
   getServerConfig(
     request: GetServerConfigRequest,
     context: CallContext & CallContextExt,
@@ -1480,6 +1654,10 @@ export interface AdminManageClient<CallOptionsExt = {}> {
     request: DeepPartial<GrantInvitationsRequest>,
     options?: CallOptions & CallOptionsExt,
   ): Promise<GrantInvitationsReply>;
+  invalidateInvite(
+    request: DeepPartial<InvalidateInviteRequest>,
+    options?: CallOptions & CallOptionsExt,
+  ): Promise<InvalidateInviteReply>;
   getServerConfig(
     request: DeepPartial<GetServerConfigRequest>,
     options?: CallOptions & CallOptionsExt,

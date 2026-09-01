@@ -9,12 +9,7 @@ use wakuwaku::amqp::{AmqpExchangeType, AmqpMessageSend, AmqpRouting};
 ///
 /// The `invite_token` is a secret; its `Debug` representation is redacted.
 #[derive(
-    Clone,
-    rkyv::Archive,
-    rkyv::Serialize,
-    rkyv::Deserialize,
-    RkyvMessageSer,
-    RkyvMessageDe,
+    Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, RkyvMessageSer, RkyvMessageDe,
 )]
 pub struct InvitationSentEvent {
     /// The pending-invitation id.

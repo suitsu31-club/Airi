@@ -5,10 +5,14 @@ use auth::events::{InvitationExpiryCleanupSignal, SessionCleanupSignal};
 use auth::hooks::{AuthCronHook, BanHook, CreditHook};
 use auth::services::session::SessionService;
 use base::events::{
-    CreditChangeEvent, InvitationSentEvent, SystemBanEvent, UserLoginEvent, UserRegisteredEvent,
+    CreditChangeEvent, InvitationAcceptedEvent, InvitationSentEvent, SystemBanEvent,
+    UserLoginEvent, UserRegisteredEvent,
 };
 use messaging::events::MailSendCall;
-use messaging::hooks::{InvitationEmailHook, LoginEmailHook, MailerHook, NotificationInitHook};
+use messaging::hooks::{
+    InvitationAcceptedEmailHook, InvitationEmailHook, LoginEmailHook, MailerHook,
+    NotificationInitHook,
+};
 use std::sync::Arc;
 use wakuwaku::amqp::{AmqpMessageProcessor, setup_consumer};
 
@@ -46,10 +50,11 @@ pub async fn run(deps: Deps) -> anyhow::Result<()> {
             <AuthCronHook as AmqpMessageProcessor<SessionCleanupSignal>>::ensure_queue(&mq).await?;
         setup_consumer::<SessionCleanupSignal, AuthCronHook>(&ch, hook.clone()).await?;
         channels.push(ch);
-        let ch = <AuthCronHook as AmqpMessageProcessor<InvitationExpiryCleanupSignal>>::ensure_queue(
-            &mq,
-        )
-        .await?;
+        let ch =
+            <AuthCronHook as AmqpMessageProcessor<InvitationExpiryCleanupSignal>>::ensure_queue(
+                &mq,
+            )
+            .await?;
         setup_consumer::<InvitationExpiryCleanupSignal, AuthCronHook>(&ch, hook.clone()).await?;
         channels.push(ch);
     }
@@ -82,7 +87,8 @@ pub async fn run(deps: Deps) -> anyhow::Result<()> {
             config_store: redis.clone(),
             mq: mq.clone(),
         };
-        let ch = <LoginEmailHook as AmqpMessageProcessor<UserLoginEvent>>::ensure_queue(&mq).await?;
+        let ch =
+            <LoginEmailHook as AmqpMessageProcessor<UserLoginEvent>>::ensure_queue(&mq).await?;
         setup_consumer::<UserLoginEvent, LoginEmailHook>(&ch, Arc::new(hook)).await?;
         channels.push(ch);
     }
@@ -94,6 +100,22 @@ pub async fn run(deps: Deps) -> anyhow::Result<()> {
             <NotificationInitHook as AmqpMessageProcessor<UserRegisteredEvent>>::ensure_queue(&mq)
                 .await?;
         setup_consumer::<UserRegisteredEvent, NotificationInitHook>(&ch, Arc::new(hook)).await?;
+        channels.push(ch);
+    }
+
+    // messaging: invitation-accepted notifier (emails the inviter)
+    {
+        let hook = InvitationAcceptedEmailHook {
+            db: db.clone(),
+            config_store: redis.clone(),
+            mq: mq.clone(),
+        };
+        let ch = <InvitationAcceptedEmailHook as AmqpMessageProcessor<
+            InvitationAcceptedEvent,
+        >>::ensure_queue(&mq)
+        .await?;
+        setup_consumer::<InvitationAcceptedEvent, InvitationAcceptedEmailHook>(&ch, Arc::new(hook))
+            .await?;
         channels.push(ch);
     }
 

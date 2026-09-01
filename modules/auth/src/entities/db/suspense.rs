@@ -91,6 +91,9 @@ impl Processor<IsSuspended> for DatabaseProcessor {
         )
         .fetch_optional(self.db())
         .await?;
-        Ok(matches!(row.map(|r| r.status), Some(SuspenseStatus::Suspended)))
+        Ok(matches!(
+            row.map(|r| r.status),
+            Some(SuspenseStatus::Suspended)
+        ))
     }
 }

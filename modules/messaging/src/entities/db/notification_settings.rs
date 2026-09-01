@@ -7,8 +7,11 @@ use wakuwaku::sqlx::DatabaseProcessor;
 #[derive(Debug, Clone)]
 pub struct NotificationSettings {
     pub id: Uuid,
+    /// Email the user on every new sign-in.
     pub send_login_email: bool,
+    /// Email the user when someone registers using one of their invitations.
     pub send_invitation_email: bool,
+    /// Include the user in marketing emails.
     pub receive_marketing_email: bool,
     pub created_at: PrimitiveDateTime,
     pub updated_at: PrimitiveDateTime,

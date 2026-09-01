@@ -21,7 +21,8 @@ enum RegisterResult {
   REGISTER_RESULT_EMAIL_TAKEN = 1;
   REGISTER_RESULT_USERNAME_TAKEN = 2;
   REGISTER_RESULT_INVALID_INVITE = 3;
-  REGISTER_RESULT_REGISTRATION_CLOSED = 4;
+  // 4 was REGISTER_RESULT_REGISTRATION_CLOSED; registration is now invite-only.
+  reserved 4;
 }
 
 message RegisterRequest {

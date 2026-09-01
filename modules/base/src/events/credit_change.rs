@@ -12,13 +12,7 @@ use wakuwaku::amqp::{AmqpExchangeType, AmqpMessageSend, AmqpRouting};
 /// because `rust_decimal` does not implement the workspace's `rkyv` version.
 /// Consumers parse them with `rust_decimal::Decimal::from_str`.
 #[derive(
-    Debug,
-    Clone,
-    rkyv::Archive,
-    rkyv::Serialize,
-    rkyv::Deserialize,
-    RkyvMessageSer,
-    RkyvMessageDe,
+    Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, RkyvMessageSer, RkyvMessageDe,
 )]
 pub struct CreditChangeEvent {
     /// The account whose credit changes.

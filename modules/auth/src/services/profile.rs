@@ -4,8 +4,9 @@ use crate::entities::db::account::{AccountEntity, AccountId, FindAccountById};
 use crate::entities::db::credit::{
     CreditChangeHistoryEntity, CreditEntity, FindCreditByAccount, ListCreditHistory,
 };
-use crate::entities::db::invite::{InviteStatus, ListInvitesByOwner};
+use crate::entities::db::invite::{CountFreeInvitesByOwner, InviteStatus, ListInvitesByOwner};
 use crate::entities::db::membership::{FindMembershipByAccount, MembershipEntity};
+use crate::utils::datetime::now_primitive;
 use kanau::processor::Processor;
 use rust_decimal::Decimal;
 use wakuwaku::sqlx::DatabaseProcessor;
@@ -131,13 +132,14 @@ impl Processor<GetMyInvitationSummary> for ProfileService {
     type Error = wakuwaku::Error;
     #[tracing::instrument(skip_all, err, name = "Service:GetMyInvitationSummary")]
     async fn process(&self, input: GetMyInvitationSummary) -> Result<Self::Output, Self::Error> {
-        let membership = self
+        let now = now_primitive();
+        let available_count = self
             .db
-            .process(FindMembershipByAccount {
-                account: input.user_id,
+            .process(CountFreeInvitesByOwner {
+                owner: input.user_id,
+                now,
             })
-            .await?;
-        let available_count = membership.map_or(0, |m| m.available_invitation_count);
+            .await? as i32;
         let invites = self
             .db
             .process(ListInvitesByOwner {
@@ -177,13 +179,14 @@ impl Processor<GetMyInvitationGrouping> for ProfileService {
     type Error = wakuwaku::Error;
     #[tracing::instrument(skip_all, err, name = "Service:GetMyInvitationGrouping")]
     async fn process(&self, input: GetMyInvitationGrouping) -> Result<Self::Output, Self::Error> {
-        let membership = self
+        let now = now_primitive();
+        let available_count = self
             .db
-            .process(FindMembershipByAccount {
-                account: input.user_id,
+            .process(CountFreeInvitesByOwner {
+                owner: input.user_id,
+                now,
             })
-            .await?;
-        let available_count = membership.map_or(0, |m| m.available_invitation_count);
+            .await? as i32;
         let invites = self
             .db
             .process(ListInvitesByOwner {

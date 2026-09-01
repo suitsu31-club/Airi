@@ -17,7 +17,9 @@ pub struct MailerHook {
     enabled: bool,
 }
 
-fn build_transport(smtp: &SmtpConfig) -> Result<AsyncSmtpTransport<Tokio1Executor>, wakuwaku::Error> {
+fn build_transport(
+    smtp: &SmtpConfig,
+) -> Result<AsyncSmtpTransport<Tokio1Executor>, wakuwaku::Error> {
     let builder = if smtp.starttls {
         AsyncSmtpTransport::<Tokio1Executor>::starttls_relay(&smtp.host)
             .map_err(|e| wakuwaku::Error::Io(e.into()))?
@@ -71,7 +73,10 @@ impl Processor<MailSendCall> for MailerHook {
             .unwrap_or_else(|| self.config.smtp.sender.clone());
         let message = Message::builder()
             .from(from.parse().map_err(|_| wakuwaku::Error::InvalidInput)?)
-            .to(input.to.parse().map_err(|_| wakuwaku::Error::InvalidInput)?)
+            .to(input
+                .to
+                .parse()
+                .map_err(|_| wakuwaku::Error::InvalidInput)?)
             .subject(input.subject)
             .header(ContentType::TEXT_HTML)
             .body(input.body)

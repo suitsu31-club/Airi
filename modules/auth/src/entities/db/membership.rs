@@ -9,7 +9,6 @@ pub struct MembershipEntity {
     pub level: i32,
     pub admin_privilege: Option<AdminRole>,
     pub invited_by: Option<InviteId>,
-    pub available_invitation_count: i32,
 }
 
 /// Administrative role granted to a member.
@@ -70,7 +69,7 @@ impl Processor<FindMembershipByAccount> for DatabaseProcessor {
             MembershipEntity,
             r#"SELECT account AS "account: AccountId", level,
                       admin_privilege AS "admin_privilege?: AdminRole",
-                      invited_by AS "invited_by?: InviteId", available_invitation_count
+                      invited_by AS "invited_by?: InviteId"
                FROM auth.membership WHERE account = $1"#,
             input.account.0
         )
@@ -85,7 +84,6 @@ pub struct CreateMembership {
     pub level: i32,
     pub admin_privilege: Option<AdminRole>,
     pub invited_by: Option<InviteId>,
-    pub available_invitation_count: i32,
 }
 
 impl Processor<CreateMembership> for DatabaseProcessor {
@@ -95,13 +93,12 @@ impl Processor<CreateMembership> for DatabaseProcessor {
     async fn process(&self, input: CreateMembership) -> Result<Self::Output, Self::Error> {
         sqlx::query!(
             r#"INSERT INTO auth.membership
-               (account, level, admin_privilege, invited_by, available_invitation_count)
-               VALUES ($1, $2, $3, $4, $5)"#,
+               (account, level, admin_privilege, invited_by)
+               VALUES ($1, $2, $3, $4)"#,
             input.account.0,
             input.level,
             input.admin_privilege as Option<AdminRole>,
-            input.invited_by.map(|i| i.0),
-            input.available_invitation_count
+            input.invited_by.map(|i| i.0)
         )
         .execute(self.db())
         .await?;
@@ -128,56 +125,5 @@ impl Processor<SetAdminRole> for DatabaseProcessor {
         .execute(self.db())
         .await?;
         Ok(())
-    }
-}
-
-/// Adjust the available invitation count by a delta, refusing to go negative.
-/// Returns the new count, or `None` when the guard failed or the member is absent.
-pub struct AdjustInvitationCount {
-    pub account: AccountId,
-    pub delta: i32,
-}
-
-impl Processor<AdjustInvitationCount> for DatabaseProcessor {
-    type Output = Option<i32>;
-    type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err, name = "SQL:AdjustInvitationCount")]
-    async fn process(&self, input: AdjustInvitationCount) -> Result<Self::Output, Self::Error> {
-        let row = sqlx::query!(
-            r#"UPDATE auth.membership
-               SET available_invitation_count = available_invitation_count + $2
-               WHERE account = $1 AND available_invitation_count + $2 >= 0
-               RETURNING available_invitation_count"#,
-            input.account.0,
-            input.delta
-        )
-        .fetch_optional(self.db())
-        .await?;
-        Ok(row.map(|r| r.available_invitation_count))
-    }
-}
-
-/// Grant additional invitations to a member. Returns the new count.
-pub struct GrantInvitations {
-    pub account: AccountId,
-    pub count: i32,
-}
-
-impl Processor<GrantInvitations> for DatabaseProcessor {
-    type Output = Option<i32>;
-    type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err, name = "SQL:GrantInvitations")]
-    async fn process(&self, input: GrantInvitations) -> Result<Self::Output, Self::Error> {
-        let row = sqlx::query!(
-            r#"UPDATE auth.membership
-               SET available_invitation_count = available_invitation_count + $2
-               WHERE account = $1
-               RETURNING available_invitation_count"#,
-            input.account.0,
-            input.count
-        )
-        .fetch_optional(self.db())
-        .await?;
-        Ok(row.map(|r| r.available_invitation_count))
     }
 }

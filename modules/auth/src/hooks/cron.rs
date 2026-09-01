@@ -1,6 +1,6 @@
 //! Periodic cleanup reactors for sessions and invitations.
 
-use crate::entities::db::invite::{ExpireInvitesBefore, ReleaseExpiredPending};
+use crate::entities::db::invite::{ExpireFreeSlots, ReleaseExpiredPending};
 use crate::entities::db::sessions::DeleteExpiredSessions;
 use crate::events::{InvitationExpiryCleanupSignal, SessionCleanupSignal};
 use crate::utils::datetime::now_primitive;
@@ -45,7 +45,7 @@ impl Processor<InvitationExpiryCleanupSignal> for AuthCronHook {
         _input: InvitationExpiryCleanupSignal,
     ) -> Result<Self::Output, Self::Error> {
         let now = now_primitive();
-        self.db.process(ExpireInvitesBefore { now }).await?;
+        self.db.process(ExpireFreeSlots { now }).await?;
         self.db.process(ReleaseExpiredPending { now }).await?;
         Ok(())
     }

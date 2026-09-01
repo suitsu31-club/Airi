@@ -97,8 +97,8 @@ async fn initialize_deps(
         .await
         .context("connecting to redis")?;
 
-    let args = amqprs::connection::OpenConnectionArguments::try_from(mq_url)
-        .context("parsing MQ_URL")?;
+    let args =
+        amqprs::connection::OpenConnectionArguments::try_from(mq_url).context("parsing MQ_URL")?;
     let conn = amqprs::connection::Connection::open(&args)
         .await
         .context("opening amqp connection")?;

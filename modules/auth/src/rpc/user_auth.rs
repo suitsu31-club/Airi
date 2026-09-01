@@ -68,7 +68,6 @@ impl UserAuth for UserAuthRpc {
             RegisterResult::EmailTaken => (pb::RegisterResult::EmailTaken, None),
             RegisterResult::UsernameTaken => (pb::RegisterResult::UsernameTaken, None),
             RegisterResult::InvalidInvite => (pb::RegisterResult::InvalidInvite, None),
-            RegisterResult::RegistrationClosed => (pb::RegisterResult::RegistrationClosed, None),
         };
         Ok(Response::new(pb::RegisterReply {
             result: code as i32,

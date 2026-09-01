@@ -2,10 +2,9 @@
 
 use crate::entities::db::account::AccountId;
 use crate::rpc::middleware::UserId;
-use crate::rpc::parse_uuid;
 use crate::services::invitation::{
-    CreateInvitation, InvitationService, ListMyInvitations, ResendInvitationEmail, ResendResult,
-    SendInvitation, SendInvitationResult,
+    InvitationService, ListMyInvitations, ResendInvitationEmail, ResendResult, SendInvitation,
+    SendInvitationResult,
 };
 use crate::utils::datetime::to_unix;
 use app_protobuf::auth as pb;
@@ -21,27 +20,6 @@ pub struct InvitationRpc {
 
 #[tonic::async_trait]
 impl Invitation for InvitationRpc {
-    async fn create_invitation(
-        &self,
-        request: Request<pb::CreateInvitationRequest>,
-    ) -> Result<Response<pb::CreateInvitationReply>, Status> {
-        let user = UserId::from_request(&request)?;
-        let req = request.into_inner();
-        let owner = match req.owner {
-            Some(o) => AccountId(parse_uuid(&o)?),
-            None => AccountId(user.0),
-        };
-        let invite_tokens = self
-            .invitation
-            .process(CreateInvitation {
-                actor: AccountId(user.0),
-                owner,
-                count: req.count,
-            })
-            .await?;
-        Ok(Response::new(pb::CreateInvitationReply { invite_tokens }))
-    }
-
     async fn send_invitation(
         &self,
         request: Request<pb::SendInvitationRequest>,
@@ -59,6 +37,7 @@ impl Invitation for InvitationRpc {
             SendInvitationResult::Sent => pb::SendInvitationResult::Sent,
             SendInvitationResult::NoInvitationLeft => pb::SendInvitationResult::NoInvitationLeft,
             SendInvitationResult::EmailInvalid => pb::SendInvitationResult::EmailInvalid,
+            SendInvitationResult::AlreadyRegistered => pb::SendInvitationResult::AlreadyRegistered,
         };
         Ok(Response::new(pb::SendInvitationReply {
             result: code as i32,
@@ -122,6 +101,9 @@ impl Invitation for InvitationRpc {
                 status: p.status.as_str().to_string(),
             })
             .collect();
-        Ok(Response::new(pb::ListMyInvitationsReply { invites, pending }))
+        Ok(Response::new(pb::ListMyInvitationsReply {
+            invites,
+            pending,
+        }))
     }
 }

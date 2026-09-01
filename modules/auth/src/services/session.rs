@@ -90,7 +90,8 @@ impl Processor<CreateSession> for SessionService {
                 session: entity.clone(),
             })
             .await?;
-        self.write_cache(&entity, cfg.session_refresh_ttl_secs).await?;
+        self.write_cache(&entity, cfg.session_refresh_ttl_secs)
+            .await?;
         Ok(SessionId(id))
     }
 }
@@ -140,7 +141,8 @@ impl Processor<RefreshSession> for SessionService {
                     .await?
                 {
                     session.last_refreshed_at = now;
-                    self.write_cache(&session, cfg.session_refresh_ttl_secs).await?;
+                    self.write_cache(&session, cfg.session_refresh_ttl_secs)
+                        .await?;
                 }
                 Ok(RefreshResult::Refreshed)
             }

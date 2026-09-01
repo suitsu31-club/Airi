@@ -1,3 +1,37 @@
+//! Invitations: slots, sends, and redemption.
+//!
+//! An invitation is a row in `auth.invite` — a *slot* owned by an account.
+//! [`InviteStatus`] drives its whole lifecycle:
+//!
+//! ```text
+//!    admin grant          send (claim)              register
+//!  ──────────────▶ Free ───────────────▶ Pending ───────────────▶ Accepted
+//!                   │ ▲                     │
+//!      slot expiry  │ │  pending expiry     │
+//!      (never sent) │ └─────────────────────┘  (hold released; slot reused)
+//!                   ▼
+//!                Expired          Invalid  ◀── admin, from Free/Pending
+//! ```
+//!
+//! - **Grant.** Only a moderator/site-owner admin mints slots, as `Free`
+//!   invites owned by the target (optionally with an expiry). Users cannot
+//!   create invitations themselves.
+//! - **Send.** [`ClaimFreeInviteAndPin`] atomically consumes one non-expired
+//!   `Free` slot: it flips to `Pending`, its token is regenerated, and a
+//!   [`PendingInvitationEntity`] pins the recipient email. The registrant must
+//!   use that exact email.
+//! - **Redeem.** Registration accepts a `Pending` invite whose pinned email
+//!   matches; the invite and its pending row both become `Accepted` and the new
+//!   member records the invite as `invited_by` (forming the invite tree).
+//! - **Expiry.** A `Free` slot that is never sent lapses to `Expired`
+//!   ([`ExpireFreeSlots`]) and is wasted. A `Pending` invite not accepted in
+//!   time is released back to `Free` ([`ReleaseExpiredPending`]) so the owner
+//!   can reuse the slot; the stale token dies and is regenerated on next send.
+//! - **Invalidate.** An admin may force a `Free` or `Pending` invite to
+//!   `Invalid` ([`InvalidateInvite`]).
+//! - **Counting.** "Available invitations" is just the number of usable `Free`
+//!   slots ([`CountFreeInvitesByOwner`]); there is no separate counter.
+
 use crate::entities::db::account::AccountId;
 use kanau::processor::Processor;
 use rand::RngCore;
@@ -9,15 +43,20 @@ use wakuwaku::sqlx::DatabaseProcessor;
 #[sqlx(transparent)]
 pub struct InviteId(pub i64);
 
-/// A row of `auth.invite`.
+/// A row of `auth.invite` — an invitation *slot* owned by an account.
 pub struct InviteEntity {
     pub id: InviteId,
+    /// Account that owns this slot (the inviter).
     pub owner: AccountId,
+    /// Opaque redemption token; regenerated every time the slot is sent.
     pub invite_token: String,
     pub created_at: PrimitiveDateTime,
+    /// When the invite lapses: an optional admin-set slot expiry while `Free`,
+    /// or the send deadline while `Pending`. `None` means it never expires.
     pub will_expire_at: Option<PrimitiveDateTime>,
     pub last_status_change: PrimitiveDateTime,
     pub status: InviteStatus,
+    /// Provenance tag recorded at creation, e.g. `"admin_grant"`.
     pub source: String,
 }
 
@@ -25,10 +64,17 @@ pub struct InviteEntity {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "invite_status", rename_all = "snake_case")]
 pub enum InviteStatus {
+    /// Redeemed — a user registered with this invite.
     Accepted,
+    /// Lapsed: a `Free` slot whose expiry passed before it was ever sent; wasted.
     Expired,
+    /// Administratively voided (from `Free` or `Pending`); never redeemable.
     Invalid,
+    /// Sent to a specific email and awaiting registration; carries a pinned
+    /// [`PendingInvitationEntity`] and a freshly regenerated token.
     Pending,
+    /// An unused slot the owner holds and may send. Counted as an "available
+    /// invitation"; may carry an optional expiry.
     Free,
 }
 
@@ -45,12 +91,15 @@ impl InviteStatus {
     }
 }
 
-/// A row of `auth.pending_invitation`.
+/// A row of `auth.pending_invitation`: one send of a slot to a specific email.
 pub struct PendingInvitationEntity {
     pub id: i64,
+    /// The slot ([`InviteEntity`]) this send belongs to.
     pub invite: InviteId,
+    /// Email the invite is pinned to; the registrant must use exactly this.
     pub email: String,
     pub sent_at: PrimitiveDateTime,
+    /// Deadline after which the hold is released and the slot returns to `Free`.
     pub will_release_at: PrimitiveDateTime,
     pub last_status_change: PrimitiveDateTime,
     pub status: PendingInvitationStatus,
@@ -60,8 +109,11 @@ pub struct PendingInvitationEntity {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, sqlx::Type)]
 #[sqlx(type_name = "pending_invitation_status", rename_all = "snake_case")]
 pub enum PendingInvitationStatus {
+    /// Awaiting registration by the pinned email.
     Pending,
+    /// The pinned recipient registered with this invite.
     Accepted,
+    /// The hold elapsed; the underlying slot was released back to `Free`.
     Expired,
 }
 
@@ -183,33 +235,6 @@ impl Processor<ListInvitesByOwner> for DatabaseProcessor {
     }
 }
 
-/// Create a pending invitation record.
-pub struct CreatePendingInvitation {
-    pub invite: InviteId,
-    pub email: String,
-    pub will_release_at: PrimitiveDateTime,
-}
-
-impl Processor<CreatePendingInvitation> for DatabaseProcessor {
-    type Output = PendingInvitationEntity;
-    type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err, name = "SQL:CreatePendingInvitation")]
-    async fn process(&self, input: CreatePendingInvitation) -> Result<Self::Output, Self::Error> {
-        sqlx::query_as!(
-            PendingInvitationEntity,
-            r#"INSERT INTO auth.pending_invitation (invite, email, will_release_at)
-               VALUES ($1, $2, $3)
-               RETURNING id, invite AS "invite: InviteId", email, sent_at, will_release_at,
-                         last_status_change, status AS "status: PendingInvitationStatus""#,
-            input.invite.0,
-            input.email,
-            input.will_release_at
-        )
-        .fetch_one(self.db())
-        .await
-    }
-}
-
 /// Look up a pending invitation by id.
 pub struct FindPendingInvitation {
     pub id: i64,
@@ -281,19 +306,19 @@ impl Processor<TouchPendingInvitation> for DatabaseProcessor {
     }
 }
 
-/// Expire pending invites whose absolute expiry has passed.
-pub struct ExpireInvitesBefore {
+/// Expire Free slots whose admin-set expiry elapsed before they were sent.
+pub struct ExpireFreeSlots {
     pub now: PrimitiveDateTime,
 }
 
-impl Processor<ExpireInvitesBefore> for DatabaseProcessor {
+impl Processor<ExpireFreeSlots> for DatabaseProcessor {
     type Output = u64;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err, name = "SQL:ExpireInvitesBefore")]
-    async fn process(&self, input: ExpireInvitesBefore) -> Result<Self::Output, Self::Error> {
+    #[tracing::instrument(skip_all, err, name = "SQL:ExpireFreeSlots")]
+    async fn process(&self, input: ExpireFreeSlots) -> Result<Self::Output, Self::Error> {
         let result = sqlx::query!(
             r#"UPDATE auth.invite SET status = 'expired', last_status_change = now()
-               WHERE status = 'pending' AND will_expire_at IS NOT NULL AND will_expire_at < $1"#,
+               WHERE status = 'free' AND will_expire_at IS NOT NULL AND will_expire_at < $1"#,
             input.now
         )
         .execute(self.db())
@@ -302,8 +327,8 @@ impl Processor<ExpireInvitesBefore> for DatabaseProcessor {
     }
 }
 
-/// Mark all pending invitations for an invite as accepted (used on registration
-/// so they are not later released and refunded).
+/// Mark an invite's pending invitations `accepted` (used at registration) so
+/// the release sweep never later returns the now-redeemed slot to `Free`.
 pub struct AcceptPendingInvitationsByInvite {
     pub invite: InviteId,
 }
@@ -327,8 +352,9 @@ impl Processor<AcceptPendingInvitationsByInvite> for DatabaseProcessor {
     }
 }
 
-/// Release pending invitations whose hold has elapsed: mark them expired, expire
-/// the underlying invite, and refund the owner's invitation count.
+/// Release pending invitations whose hold has elapsed: mark each pending row
+/// `expired` and return its slot to the owner as reusable `Free` (clearing the
+/// expiry). Nothing is refunded — availability is derived from `Free` slots.
 pub struct ReleaseExpiredPending {
     pub now: PrimitiveDateTime,
 }
@@ -351,21 +377,12 @@ impl Processor<ReleaseExpiredPending> for DatabaseProcessor {
         let invite_ids: Vec<i64> = released.iter().map(|r| r.invite).collect();
 
         if !invite_ids.is_empty() {
+            // Return the slot to the owner: reusable `Free`, expiry cleared. The
+            // stale token can no longer register (only `Pending` invites can) and
+            // is regenerated on the next send.
             sqlx::query!(
-                r#"UPDATE auth.membership m
-                   SET available_invitation_count = m.available_invitation_count + sub.cnt
-                   FROM (
-                       SELECT i.owner AS owner, count(*)::int AS cnt
-                       FROM auth.invite i WHERE i.id = ANY($1) GROUP BY i.owner
-                   ) sub
-                   WHERE m.account = sub.owner"#,
-                &invite_ids
-            )
-            .execute(&mut *tx)
-            .await?;
-
-            sqlx::query!(
-                r#"UPDATE auth.invite SET status = 'expired', last_status_change = now()
+                r#"UPDATE auth.invite
+                   SET status = 'free', will_expire_at = NULL, last_status_change = now()
                    WHERE id = ANY($1) AND status = 'pending'"#,
                 &invite_ids
             )
@@ -427,5 +444,201 @@ impl Processor<ListPendingInvitationsByOwner> for DatabaseProcessor {
         )
         .fetch_all(self.db())
         .await
+    }
+}
+
+/// Atomically claim one non-expired `Free` slot for `owner` and pin it to
+/// `email`: the slot becomes `Pending` with a freshly generated token and a
+/// matching `pending_invitation` row, all in one transaction. Returns the
+/// claimed ids, or `None` when the owner has no usable slot.
+pub struct ClaimFreeInviteAndPin {
+    pub owner: AccountId,
+    pub new_token: String,
+    pub email: String,
+    pub expiry: PrimitiveDateTime,
+    pub now: PrimitiveDateTime,
+}
+
+/// Identifiers produced by [`ClaimFreeInviteAndPin`].
+pub struct ClaimedInvite {
+    pub invite_id: InviteId,
+    pub pending_id: i64,
+}
+
+impl Processor<ClaimFreeInviteAndPin> for DatabaseProcessor {
+    type Output = Option<ClaimedInvite>;
+    type Error = sqlx::Error;
+    #[tracing::instrument(skip_all, err, name = "SQL-Transaction:ClaimFreeInviteAndPin")]
+    async fn process(&self, input: ClaimFreeInviteAndPin) -> Result<Self::Output, Self::Error> {
+        let mut tx = self.db().begin().await?;
+        let claimed = sqlx::query!(
+            r#"UPDATE auth.invite SET status = 'pending', invite_token = $2,
+                      will_expire_at = $3, last_status_change = now()
+               WHERE id = (
+                   SELECT id FROM auth.invite
+                   WHERE owner = $1 AND status = 'free'
+                     AND (will_expire_at IS NULL OR will_expire_at > $4)
+                   ORDER BY will_expire_at ASC NULLS LAST, created_at ASC
+                   LIMIT 1
+                   FOR UPDATE SKIP LOCKED
+               )
+               RETURNING id"#,
+            input.owner.0,
+            input.new_token,
+            input.expiry,
+            input.now
+        )
+        .fetch_optional(&mut *tx)
+        .await?;
+
+        let Some(row) = claimed else {
+            tx.rollback().await?;
+            return Ok(None);
+        };
+        let invite_id = InviteId(row.id);
+
+        let pending = sqlx::query!(
+            r#"INSERT INTO auth.pending_invitation (invite, email, will_release_at)
+               VALUES ($1, $2, $3) RETURNING id"#,
+            invite_id.0,
+            input.email,
+            input.expiry
+        )
+        .fetch_one(&mut *tx)
+        .await?;
+
+        tx.commit().await?;
+        Ok(Some(ClaimedInvite {
+            invite_id,
+            pending_id: pending.id,
+        }))
+    }
+}
+
+/// Count an owner's usable `Free` slots (available invitations).
+pub struct CountFreeInvitesByOwner {
+    pub owner: AccountId,
+    pub now: PrimitiveDateTime,
+}
+
+impl Processor<CountFreeInvitesByOwner> for DatabaseProcessor {
+    type Output = i64;
+    type Error = sqlx::Error;
+    #[tracing::instrument(skip_all, err, name = "SQL:CountFreeInvitesByOwner")]
+    async fn process(&self, input: CountFreeInvitesByOwner) -> Result<Self::Output, Self::Error> {
+        let row = sqlx::query!(
+            r#"SELECT count(*) AS "count!" FROM auth.invite
+               WHERE owner = $1 AND status = 'free'
+                 AND (will_expire_at IS NULL OR will_expire_at > $2)"#,
+            input.owner.0,
+            input.now
+        )
+        .fetch_one(self.db())
+        .await?;
+        Ok(row.count)
+    }
+}
+
+/// Look up the pending invitation pinned to an invite (the newest, if any).
+pub struct FindPendingInvitationByInvite {
+    pub invite: InviteId,
+}
+
+impl Processor<FindPendingInvitationByInvite> for DatabaseProcessor {
+    type Output = Option<PendingInvitationEntity>;
+    type Error = sqlx::Error;
+    #[tracing::instrument(skip_all, err, name = "SQL:FindPendingInvitationByInvite")]
+    async fn process(
+        &self,
+        input: FindPendingInvitationByInvite,
+    ) -> Result<Self::Output, Self::Error> {
+        sqlx::query_as!(
+            PendingInvitationEntity,
+            r#"SELECT id, invite AS "invite: InviteId", email, sent_at, will_release_at,
+                      last_status_change, status AS "status: PendingInvitationStatus"
+               FROM auth.pending_invitation WHERE invite = $1
+               ORDER BY sent_at DESC LIMIT 1"#,
+            input.invite.0
+        )
+        .fetch_optional(self.db())
+        .await
+    }
+}
+
+/// Regenerate a `Pending` invite's token and extend its expiry (used on resend).
+pub struct RefreshPendingInvite {
+    pub invite: InviteId,
+    pub new_token: String,
+    pub will_expire_at: PrimitiveDateTime,
+}
+
+impl Processor<RefreshPendingInvite> for DatabaseProcessor {
+    type Output = ();
+    type Error = sqlx::Error;
+    #[tracing::instrument(skip_all, err, name = "SQL:RefreshPendingInvite")]
+    async fn process(&self, input: RefreshPendingInvite) -> Result<Self::Output, Self::Error> {
+        sqlx::query!(
+            r#"UPDATE auth.invite SET invite_token = $2, will_expire_at = $3,
+                      last_status_change = now()
+               WHERE id = $1 AND status = 'pending'"#,
+            input.invite.0,
+            input.new_token,
+            input.will_expire_at
+        )
+        .execute(self.db())
+        .await?;
+        Ok(())
+    }
+}
+
+/// Mark an invite's pending invitations expired (used when invalidating).
+pub struct ExpirePendingInvitationsByInvite {
+    pub invite: InviteId,
+}
+
+impl Processor<ExpirePendingInvitationsByInvite> for DatabaseProcessor {
+    type Output = ();
+    type Error = sqlx::Error;
+    #[tracing::instrument(skip_all, err, name = "SQL:ExpirePendingInvitationsByInvite")]
+    async fn process(
+        &self,
+        input: ExpirePendingInvitationsByInvite,
+    ) -> Result<Self::Output, Self::Error> {
+        sqlx::query!(
+            r#"UPDATE auth.pending_invitation SET status = 'expired', last_status_change = now()
+               WHERE invite = $1 AND status = 'pending'"#,
+            input.invite.0
+        )
+        .execute(self.db())
+        .await?;
+        Ok(())
+    }
+}
+
+/// Invalidate an invite when it is `Free` or `Pending`. Returns the prior
+/// status when invalidated, or `None` if absent or already terminal.
+pub struct InvalidateInvite {
+    pub id: InviteId,
+}
+
+impl Processor<InvalidateInvite> for DatabaseProcessor {
+    type Output = Option<InviteStatus>;
+    type Error = sqlx::Error;
+    #[tracing::instrument(skip_all, err, name = "SQL:InvalidateInvite")]
+    async fn process(&self, input: InvalidateInvite) -> Result<Self::Output, Self::Error> {
+        let row = sqlx::query!(
+            r#"WITH prev AS (SELECT id, status FROM auth.invite WHERE id = $1),
+                    upd AS (
+                        UPDATE auth.invite SET status = 'invalid', last_status_change = now()
+                        WHERE id = $1 AND status IN ('free', 'pending')
+                        RETURNING id
+                    )
+               SELECT p.status AS "status: InviteStatus"
+               FROM prev p JOIN upd u ON u.id = p.id"#,
+            input.id.0
+        )
+        .fetch_optional(self.db())
+        .await?;
+        Ok(row.map(|r| r.status))
     }
 }

@@ -8,13 +8,7 @@ use wakuwaku::redis::{KeyValue, KeyValueRead, KeyValueWrite, RedisKey};
 /// A cache hit lets the identity verifier validate a session without a database
 /// round-trip; a miss falls back to Postgres and repopulates the cache.
 #[derive(
-    Debug,
-    Clone,
-    rkyv::Archive,
-    rkyv::Serialize,
-    rkyv::Deserialize,
-    RkyvMessageSer,
-    RkyvMessageDe,
+    Debug, Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, RkyvMessageSer, RkyvMessageDe,
 )]
 pub struct SessionCache {
     pub session_id: String,

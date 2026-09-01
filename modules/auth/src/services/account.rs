@@ -1,24 +1,23 @@
 //! Account registration and password management.
 
-use crate::config::AuthConfig;
 use crate::entities::db::account::{
     AccountId, CreateAccount, CreateAccountResult, FindAccountById, UpdatePasswordHash,
 };
 use crate::entities::db::credit::CreateCreditRow;
 use crate::entities::db::invite::{
-    AcceptPendingInvitationsByInvite, FindInviteByToken, InviteStatus, SetInviteStatus,
+    AcceptPendingInvitationsByInvite, FindInviteByToken, FindPendingInvitationByInvite,
+    InviteStatus, PendingInvitationStatus, SetInviteStatus,
 };
 use crate::entities::db::membership::CreateMembership;
 use crate::utils::datetime::now_primitive;
 use crate::utils::password::{Argon2PasswordAlgorithm, PasswordAlgorithm};
-use base::config_provider::find_config_from_redis;
-use base::events::UserRegisteredEvent;
+use base::events::{InvitationAcceptedEvent, UserRegisteredEvent};
 use kanau::processor::Processor;
 use uuid::Uuid;
+use validator::ValidateEmail;
 use wakuwaku::amqp::{AmqpMessageSend, AmqpPool};
 use wakuwaku::redis::RedisConnection;
 use wakuwaku::sqlx::DatabaseProcessor;
-use validator::ValidateEmail;
 
 /// Registration and password operations.
 #[derive(Clone)]
@@ -44,7 +43,6 @@ pub enum RegisterResult {
     EmailTaken,
     UsernameTaken,
     InvalidInvite,
-    RegistrationClosed,
 }
 
 impl Processor<Register> for AccountService {
@@ -55,37 +53,44 @@ impl Processor<Register> for AccountService {
         if !input.email.validate_email() {
             return Err(wakuwaku::Error::InvalidInput);
         }
-        let cfg = find_config_from_redis::<AuthConfig>(&mut self.redis.clone()).await?;
         let now = now_primitive();
 
-        let invite = match &input.invite_token {
-            Some(token) => {
-                self.db
-                    .process(FindInviteByToken {
-                        invite_token: token.clone(),
-                    })
-                    .await?
-            }
-            None => None,
+        // Registration is invite-only: require a usable, email-bound Pending invite.
+        let Some(token) = input.invite_token.as_ref() else {
+            return Ok(RegisterResult::InvalidInvite);
         };
-        let invite = invite.filter(|i| {
-            matches!(i.status, InviteStatus::Pending | InviteStatus::Free)
-                && i.will_expire_at.is_none_or(|e| e > now)
-        });
+        let invite = self
+            .db
+            .process(FindInviteByToken {
+                invite_token: token.clone(),
+            })
+            .await?
+            .filter(|i| {
+                matches!(i.status, InviteStatus::Pending)
+                    && i.will_expire_at.is_none_or(|e| e > now)
+            });
+        let Some(invite) = invite else {
+            return Ok(RegisterResult::InvalidInvite);
+        };
 
-        if !cfg.registration_open {
-            if input.invite_token.is_none() {
-                return Ok(RegisterResult::RegistrationClosed);
-            }
-            if invite.is_none() {
-                return Ok(RegisterResult::InvalidInvite);
-            }
+        // The invite must be pinned to exactly the registrant's email.
+        let pinned = self
+            .db
+            .process(FindPendingInvitationByInvite { invite: invite.id })
+            .await?;
+        let email_matches = pinned.as_ref().is_some_and(|p| {
+            matches!(p.status, PendingInvitationStatus::Pending) && p.email == input.email
+        });
+        if !email_matches {
+            return Ok(RegisterResult::InvalidInvite);
         }
 
         let password_hash = self
             .alg
             .hash_password(&input.password)
             .map_err(|e| wakuwaku::Error::BusinessPanic(e.into()))?;
+
+        let new_member_username = input.username.clone();
 
         let user_id = AccountId(Uuid::new_v4());
         match self
@@ -109,28 +114,36 @@ impl Processor<Register> for AccountService {
                 account: user_id,
                 level: 0,
                 admin_privilege: None,
-                invited_by: invite.as_ref().map(|i| i.id),
-                available_invitation_count: cfg.default_invitation_count,
+                invited_by: Some(invite.id),
             })
             .await?;
-        self.db.process(CreateCreditRow { account: user_id }).await?;
+        self.db
+            .process(CreateCreditRow { account: user_id })
+            .await?;
 
-        if let Some(inv) = &invite {
-            self.db
-                .process(SetInviteStatus {
-                    id: inv.id,
-                    status: InviteStatus::Accepted,
-                })
-                .await?;
-            self.db
-                .process(AcceptPendingInvitationsByInvite { invite: inv.id })
-                .await?;
+        self.db
+            .process(SetInviteStatus {
+                id: invite.id,
+                status: InviteStatus::Accepted,
+            })
+            .await?;
+        self.db
+            .process(AcceptPendingInvitationsByInvite { invite: invite.id })
+            .await?;
+
+        InvitationAcceptedEvent {
+            inviter_id: invite.owner.0,
+            new_member_id: user_id.0,
+            new_member_username,
+            accepted_at: crate::utils::datetime::to_unix(now),
         }
+        .send(&self.mq)
+        .await?;
 
         UserRegisteredEvent {
             user_id: user_id.0,
             email: input.email,
-            invited_by: invite.as_ref().map(|i| i.id.0),
+            invited_by: Some(invite.id.0),
             registered_at: crate::utils::datetime::to_unix(now),
         }
         .send(&self.mq)
@@ -161,9 +174,7 @@ impl Processor<ChangePassword> for AccountService {
     async fn process(&self, input: ChangePassword) -> Result<Self::Output, Self::Error> {
         let account = self
             .db
-            .process(FindAccountById {
-                id: input.user_id,
-            })
+            .process(FindAccountById { id: input.user_id })
             .await?
             .ok_or(wakuwaku::Error::NotFound)?;
 

@@ -1,13 +1,12 @@
 //! Invitation minting and sending.
 
 use crate::config::AuthConfig;
-use crate::entities::db::account::AccountId;
+use crate::entities::db::account::{AccountId, FindAccountByEmail};
 use crate::entities::db::invite::{
-    CreateInvite, CreatePendingInvitation, FindInviteById, FindPendingInvitation, InviteEntity,
-    InviteStatus, ListInvitesByOwner, ListPendingInvitationsByOwner, PendingInvitationEntity,
-    TouchPendingInvitation, generate_invite_token,
+    ClaimFreeInviteAndPin, FindInviteById, FindPendingInvitation, InviteEntity, InviteStatus,
+    ListInvitesByOwner, ListPendingInvitationsByOwner, PendingInvitationEntity,
+    RefreshPendingInvite, TouchPendingInvitation, generate_invite_token,
 };
-use crate::entities::db::membership::{AdjustInvitationCount, AdminRole, FindMembershipByAccount};
 use crate::utils::datetime::{now_primitive, to_unix};
 use base::config_provider::find_config_from_redis;
 use base::events::InvitationSentEvent;
@@ -26,54 +25,14 @@ pub struct InvitationService {
     pub mq: AmqpPool,
 }
 
-/// Mint `count` free invites for an owner (admin action).
-pub struct CreateInvitation {
-    pub actor: AccountId,
-    pub owner: AccountId,
-    pub count: i32,
-}
-
-impl Processor<CreateInvitation> for InvitationService {
-    type Output = Vec<String>;
-    type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err, name = "Service:CreateInvitation")]
-    async fn process(&self, input: CreateInvitation) -> Result<Self::Output, Self::Error> {
-        let role = self
-            .db
-            .process(FindMembershipByAccount { account: input.actor })
-            .await?
-            .and_then(|m| m.admin_privilege)
-            .ok_or(wakuwaku::Error::PermissionsDenied)?;
-        if !matches!(role, AdminRole::SiteOwner | AdminRole::Moderator) {
-            return Err(wakuwaku::Error::PermissionsDenied);
-        }
-        if input.count <= 0 {
-            return Err(wakuwaku::Error::InvalidInput);
-        }
-        let mut tokens = Vec::with_capacity(input.count as usize);
-        for _ in 0..input.count {
-            let token = generate_invite_token();
-            self.db
-                .process(CreateInvite {
-                    owner: input.owner,
-                    invite_token: token.clone(),
-                    status: InviteStatus::Free,
-                    source: "admin_grant".to_string(),
-                    will_expire_at: None,
-                })
-                .await?;
-            tokens.push(token);
-        }
-        Ok(tokens)
-    }
-}
-
 /// Outcome of [`SendInvitation`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SendInvitationResult {
     Sent,
     NoInvitationLeft,
     EmailInvalid,
+    /// The email already belongs to a registered account.
+    AlreadyRegistered,
 }
 
 /// Send an invitation email, consuming one of the actor's invitation slots.
@@ -90,43 +49,43 @@ impl Processor<SendInvitation> for InvitationService {
         if !input.email.validate_email() {
             return Ok(SendInvitationResult::EmailInvalid);
         }
+
+        // A registered account can never accept an invitation, so refuse to
+        // send one (and never consume a slot) for an already-registered email.
         if self
             .db
-            .process(AdjustInvitationCount {
-                account: input.actor,
-                delta: -1,
+            .process(FindAccountByEmail {
+                email: input.email.clone(),
             })
             .await?
-            .is_none()
+            .is_some()
         {
-            return Ok(SendInvitationResult::NoInvitationLeft);
+            return Ok(SendInvitationResult::AlreadyRegistered);
         }
 
         let cfg = find_config_from_redis::<AuthConfig>(&mut self.redis.clone()).await?;
         let now = now_primitive();
         let token = generate_invite_token();
-        let invite = self
+        let expiry = now + Duration::seconds(cfg.invitation_expiry_secs as i64);
+
+        // Atomically consume one usable Free slot and pin it to the recipient,
+        // regenerating the token as the slot turns Pending.
+        let Some(claimed) = self
             .db
-            .process(CreateInvite {
+            .process(ClaimFreeInviteAndPin {
                 owner: input.actor,
-                invite_token: token.clone(),
-                status: InviteStatus::Pending,
-                source: "user".to_string(),
-                will_expire_at: Some(now + Duration::seconds(cfg.invitation_expiry_secs as i64)),
-            })
-            .await?;
-        let pending = self
-            .db
-            .process(CreatePendingInvitation {
-                invite: invite.id,
+                new_token: token.clone(),
                 email: input.email.clone(),
-                will_release_at: now
-                    + Duration::seconds(cfg.pending_invitation_release_secs as i64),
+                expiry,
+                now,
             })
-            .await?;
+            .await?
+        else {
+            return Ok(SendInvitationResult::NoInvitationLeft);
+        };
 
         InvitationSentEvent {
-            invite_id: pending.id,
+            invite_id: claimed.pending_id,
             email: input.email,
             invite_token: token,
             sent_at: to_unix(now),
@@ -165,27 +124,42 @@ impl Processor<ResendInvitationEmail> for InvitationService {
         else {
             return Ok(ResendResult::NotFound);
         };
-        let Some(invite) = self.db.process(FindInviteById { id: pending.invite }).await? else {
+        let Some(invite) = self
+            .db
+            .process(FindInviteById { id: pending.invite })
+            .await?
+        else {
             return Ok(ResendResult::NotFound);
         };
-        if invite.owner != input.actor {
+        // Only the owner may resend, and only while the slot is still Pending.
+        if invite.owner != input.actor || !matches!(invite.status, InviteStatus::Pending) {
             return Ok(ResendResult::NotFound);
         }
 
         let cfg = find_config_from_redis::<AuthConfig>(&mut self.redis.clone()).await?;
         let now = now_primitive();
+        let expiry = now + Duration::seconds(cfg.invitation_expiry_secs as i64);
+        let token = generate_invite_token();
+
+        // Regenerate the token (killing the previous link) and extend the expiry.
+        self.db
+            .process(RefreshPendingInvite {
+                invite: invite.id,
+                new_token: token.clone(),
+                will_expire_at: expiry,
+            })
+            .await?;
         self.db
             .process(TouchPendingInvitation {
                 id: pending.id,
-                will_release_at: now
-                    + Duration::seconds(cfg.pending_invitation_release_secs as i64),
+                will_release_at: expiry,
             })
             .await?;
 
         InvitationSentEvent {
             invite_id: pending.id,
             email: pending.email,
-            invite_token: invite.invite_token,
+            invite_token: token,
             sent_at: to_unix(now),
         }
         .send(&self.mq)

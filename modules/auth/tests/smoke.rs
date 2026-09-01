@@ -4,8 +4,11 @@
 //! Requires `DATABASE_URL`, `REDIS_URL`, and `MQ_URL` in the environment.
 
 use auth::config::AuthConfig;
+use auth::entities::db::account::{AccountId, CreateAccount, CreateAccountResult};
 use auth::entities::db::api_key::ApiKey;
-use auth::entities::db::membership::{AdminRole, SetAdminRole};
+use auth::entities::db::credit::CreateCreditRow;
+use auth::entities::db::invite::{FindInviteById, ListPendingInvitationsByOwner};
+use auth::entities::db::membership::{AdminRole, CreateMembership, SetAdminRole};
 use auth::entities::db::sessions::SessionId;
 use auth::hooks::CreditHook;
 use auth::openapi::{MeState, me_router};
@@ -13,13 +16,14 @@ use auth::rpc::middleware::{UserAuthLayer, UserId};
 use auth::services::account::{
     AccountService, ChangePassword, ChangePasswordResult, Register, RegisterResult,
 };
-use auth::services::admin::{AdminService, BanUser, ListUsers};
+use auth::services::admin::{AdminService, BanUser, GrantInvitations, ListUsers};
 use auth::services::api_key::{ApiKeyService, CreateApiKey};
+use auth::services::invitation::{InvitationService, SendInvitation, SendInvitationResult};
 use auth::services::login::{Login, LoginResult, LoginService};
 use auth::services::profile::{GetMyCredit, GetMyProfile, ProfileService};
 use auth::services::session::SessionService;
 use auth::utils::identity::{ApiKeyVerify, IdentityVerifier, SessionIdVerify};
-use auth::utils::password::Argon2PasswordAlgorithm;
+use auth::utils::password::{Argon2PasswordAlgorithm, PasswordAlgorithm};
 use base::config_provider::{refresh_config, upsert_config};
 use base::events::{CreditChangeEvent, InvitationSentEvent, UserLoginEvent, UserRegisteredEvent};
 use kanau::processor::Processor;
@@ -84,11 +88,96 @@ async fn http_get(addr: std::net::SocketAddr, path: &str, api_key: Option<&str>)
         Some(k) => format!("X-API-Key: {k}\r\n"),
         None => String::new(),
     };
-    let req = format!("GET {path} HTTP/1.1\r\nHost: localhost\r\n{key_header}Connection: close\r\n\r\n");
+    let req =
+        format!("GET {path} HTTP/1.1\r\nHost: localhost\r\n{key_header}Connection: close\r\n\r\n");
     stream.write_all(req.as_bytes()).await.expect("write");
     let mut buf = Vec::new();
     stream.read_to_end(&mut buf).await.expect("read");
     String::from_utf8_lossy(&buf).into_owned()
+}
+
+/// Provision a member directly (bootstrap, mirroring `manage-tool`); the only
+/// non-invite way an account can exist.
+async fn bootstrap_member(
+    db: &DatabaseProcessor,
+    alg: &Argon2PasswordAlgorithm,
+    username: &str,
+    email: &str,
+    role: Option<AdminRole>,
+) -> AccountId {
+    let id = AccountId(uuid::Uuid::new_v4());
+    let password_hash = alg.hash_password("bootstrap-pw").expect("hash");
+    match db
+        .process(CreateAccount {
+            id,
+            username: username.to_string(),
+            email: email.to_string(),
+            avatar_url: None,
+            password_hash,
+        })
+        .await
+        .expect("create account")
+    {
+        CreateAccountResult::Success => {}
+        other => panic!("bootstrap create: {other:?}"),
+    }
+    db.process(CreateMembership {
+        account: id,
+        level: 0,
+        admin_privilege: role,
+        invited_by: None,
+    })
+    .await
+    .expect("create membership");
+    db.process(CreateCreditRow { account: id })
+        .await
+        .expect("credit row");
+    id
+}
+
+/// Grant `founder` one slot, send an invite to `email`, and return the freshly
+/// minted invite token (read back from the pending invitation).
+async fn issue_invite(
+    admin: &AdminService,
+    invitation: &InvitationService,
+    db: &DatabaseProcessor,
+    founder: AccountId,
+    email: &str,
+) -> String {
+    admin
+        .process(GrantInvitations {
+            actor: founder,
+            target: founder,
+            count: 1,
+            expire_in_secs: None,
+        })
+        .await
+        .expect("grant slot");
+    let result = invitation
+        .process(SendInvitation {
+            actor: founder,
+            email: email.to_string(),
+        })
+        .await
+        .expect("send invitation");
+    assert!(
+        matches!(result, SendInvitationResult::Sent),
+        "send: {result:?}"
+    );
+    let pending = db
+        .process(ListPendingInvitationsByOwner { owner: founder })
+        .await
+        .expect("list pending");
+    let latest = pending
+        .into_iter()
+        .filter(|p| p.email == email)
+        .max_by_key(|p| p.id)
+        .expect("pending for email");
+    db.process(FindInviteById { id: latest.invite })
+        .await
+        .expect("find invite")
+        .expect("invite row")
+        .invite_token
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
@@ -96,14 +185,17 @@ async fn smoke_end_to_end() {
     let (db, redis, mq) = deps().await;
 
     // Declare event exchanges so registration/login publishes succeed.
-    UserRegisteredEvent::ensure_exchange(&mq).await.expect("ex1");
+    UserRegisteredEvent::ensure_exchange(&mq)
+        .await
+        .expect("ex1");
     UserLoginEvent::ensure_exchange(&mq).await.expect("ex2");
-    InvitationSentEvent::ensure_exchange(&mq).await.expect("ex3");
+    InvitationSentEvent::ensure_exchange(&mq)
+        .await
+        .expect("ex3");
 
-    // Open registration.
+    // Invite-only registration; long slot expiry so test invites never lapse.
     let cfg = AuthConfig {
-        registration_open: true,
-        default_invitation_count: 3,
+        invitation_expiry_secs: 1_000_000,
         ..AuthConfig::default()
     };
     upsert_config(db.db(), &cfg).await.expect("upsert config");
@@ -144,13 +236,69 @@ async fn smoke_end_to_end() {
     let username = format!("user_{tag}");
     let email = format!("{tag}@example.com");
 
-    // Register.
+    let invitation = InvitationService {
+        db: db.clone(),
+        redis: redis.clone(),
+        mq: mq.clone(),
+    };
+
+    // A site-owner inviter is the only source of invitations.
+    let founder = bootstrap_member(
+        &db,
+        &alg,
+        &format!("founder_{tag}"),
+        &format!("founder{tag}@example.com"),
+        Some(AdminRole::SiteOwner),
+    )
+    .await;
+
+    // Invite-only: registering without a token is rejected.
+    assert!(matches!(
+        account
+            .process(Register {
+                username: format!("noinv_{tag}"),
+                email: format!("noinv{tag}@example.com"),
+                password: "x".into(),
+                invite_token: None,
+            })
+            .await
+            .expect("register without invite"),
+        RegisterResult::InvalidInvite
+    ));
+
+    // An invite pinned to one email cannot be redeemed by another.
+    let pinned_token = issue_invite(
+        &admin,
+        &invitation,
+        &db,
+        founder,
+        &format!("pinned{tag}@example.com"),
+    )
+    .await;
+    assert!(matches!(
+        account
+            .process(Register {
+                username: format!("mism_{tag}"),
+                email: format!("different{tag}@example.com"),
+                password: "x".into(),
+                invite_token: Some(pinned_token),
+            })
+            .await
+            .expect("register mismatched email"),
+        RegisterResult::InvalidInvite
+    ));
+
+    // Two invites to the primary email; the second exercises EmailTaken.
+    let token1 = issue_invite(&admin, &invitation, &db, founder, &email).await;
+    let token2 = issue_invite(&admin, &invitation, &db, founder, &email).await;
+
+    // Register with a matching, email-bound invite.
     let user_id = match account
         .process(Register {
             username: username.clone(),
             email: email.clone(),
             password: "pw-correct-1".into(),
-            invite_token: None,
+            invite_token: Some(token1),
         })
         .await
         .expect("register")
@@ -159,26 +307,30 @@ async fn smoke_end_to_end() {
         other => panic!("expected register success, got {other:?}"),
     };
 
-    // Duplicate email / username.
+    // Duplicate email: the second pending invite to the same address.
     assert!(matches!(
         account
             .process(Register {
                 username: format!("other_{tag}"),
                 email: email.clone(),
                 password: "x".into(),
-                invite_token: None,
+                invite_token: Some(token2),
             })
             .await
             .expect("dup email"),
         RegisterResult::EmailTaken
     ));
+
+    // Duplicate username: a fresh invite to a new address, reusing the username.
+    let dup_email = format!("o{tag}@example.com");
+    let dup_token = issue_invite(&admin, &invitation, &db, founder, &dup_email).await;
     assert!(matches!(
         account
             .process(Register {
                 username: username.clone(),
-                email: format!("o{tag}@example.com"),
+                email: dup_email,
                 password: "x".into(),
-                invite_token: None,
+                invite_token: Some(dup_token),
             })
             .await
             .expect("dup username"),
@@ -246,7 +398,10 @@ async fn smoke_end_to_end() {
     );
 
     // Profile.
-    let p = profile.process(GetMyProfile { user_id }).await.expect("profile");
+    let p = profile
+        .process(GetMyProfile { user_id })
+        .await
+        .expect("profile");
     assert_eq!(p.account.username, username);
 
     // API key round-trip.
@@ -278,7 +433,10 @@ async fn smoke_end_to_end() {
         })
         .await
         .expect("credit hook");
-    let credit = profile.process(GetMyCredit { user_id }).await.expect("credit");
+    let credit = profile
+        .process(GetMyCredit { user_id })
+        .await
+        .expect("credit");
     assert_eq!(credit.total_amount.to_string(), "10.5");
 
     // Change password.
@@ -308,12 +466,13 @@ async fn smoke_end_to_end() {
     // Admin: promote a second account, list users, ban the first.
     let admin_tag = uuid::Uuid::new_v4().simple().to_string();
     let admin_email = format!("{admin_tag}@example.com");
+    let admin_token = issue_invite(&admin, &invitation, &db, founder, &admin_email).await;
     let admin_id = match account
         .process(Register {
             username: format!("admin_{admin_tag}"),
             email: admin_email.clone(),
             password: "adminpw".into(),
-            invite_token: None,
+            invite_token: Some(admin_token),
         })
         .await
         .expect("register admin")
@@ -410,7 +569,10 @@ async fn smoke_end_to_end() {
         .expect("admin key");
     let ok_resp = http_get(addr, "/api/me", Some(&admin_key.plaintext)).await;
     assert!(ok_resp.contains("200 OK"), "unexpected: {ok_resp}");
-    assert!(ok_resp.contains("\"profile\""), "missing profile: {ok_resp}");
+    assert!(
+        ok_resp.contains("\"profile\""),
+        "missing profile: {ok_resp}"
+    );
     assert!(
         ok_resp.contains("\"by_status\""),
         "missing invitation grouping: {ok_resp}"

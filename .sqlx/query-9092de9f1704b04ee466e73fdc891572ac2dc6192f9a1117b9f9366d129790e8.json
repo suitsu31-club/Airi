@@ -1,0 +1,41 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "WITH prev AS (SELECT id, status FROM auth.invite WHERE id = $1),\n                    upd AS (\n                        UPDATE auth.invite SET status = 'invalid', last_status_change = now()\n                        WHERE id = $1 AND status IN ('free', 'pending')\n                        RETURNING id\n                    )\n               SELECT p.status AS \"status: InviteStatus\"\n               FROM prev p JOIN upd u ON u.id = p.id",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "status: InviteStatus",
+        "type_info": {
+          "Custom": {
+            "name": "auth.invite_status",
+            "kind": {
+              "Enum": [
+                "accepted",
+                "expired",
+                "invalid",
+                "pending",
+                "free"
+              ]
+            }
+          }
+        },
+        "origin": {
+          "Table": {
+            "table": "auth.invite",
+            "name": "status"
+          }
+        }
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Int8"
+      ]
+    },
+    "nullable": [
+      false
+    ]
+  },
+  "hash": "9092de9f1704b04ee466e73fdc891572ac2dc6192f9a1117b9f9366d129790e8"
+}

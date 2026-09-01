@@ -12,8 +12,11 @@ import { Empty } from "../shared/shared.js";
 export const protobufPackage = "airi.messaging";
 
 export interface NotificationSettingsData {
+  /** Email me on every new sign-in to my account. */
   sendLoginEmail: boolean;
+  /** Email me when someone registers using one of my invitations. */
   sendInvitationEmail: boolean;
+  /** Include me in occasional product/marketing emails. */
   receiveMarketingEmail: boolean;
 }
 

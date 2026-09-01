@@ -16,7 +16,6 @@ export enum RegisterResult {
   EMAIL_TAKEN = 1,
   USERNAME_TAKEN = 2,
   INVALID_INVITE = 3,
-  REGISTRATION_CLOSED = 4,
   UNRECOGNIZED = -1,
 }
 
@@ -34,9 +33,6 @@ export function registerResultFromJSON(object: any): RegisterResult {
     case 3:
     case "REGISTER_RESULT_INVALID_INVITE":
       return RegisterResult.INVALID_INVITE;
-    case 4:
-    case "REGISTER_RESULT_REGISTRATION_CLOSED":
-      return RegisterResult.REGISTRATION_CLOSED;
     case -1:
     case "UNRECOGNIZED":
     default:
@@ -54,8 +50,6 @@ export function registerResultToJSON(object: RegisterResult): string {
       return "REGISTER_RESULT_USERNAME_TAKEN";
     case RegisterResult.INVALID_INVITE:
       return "REGISTER_RESULT_INVALID_INVITE";
-    case RegisterResult.REGISTRATION_CLOSED:
-      return "REGISTER_RESULT_REGISTRATION_CLOSED";
     case RegisterResult.UNRECOGNIZED:
     default:
       return "UNRECOGNIZED";

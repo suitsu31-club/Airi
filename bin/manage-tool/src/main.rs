@@ -136,7 +136,11 @@ async fn seed_config<T: ConfigJson>(
     println!(
         "config {:?}: {}",
         T::KEY,
-        if inserted { "inserted" } else { "already present" }
+        if inserted {
+            "inserted"
+        } else {
+            "already present"
+        }
     );
     Ok(())
 }
@@ -179,7 +183,6 @@ async fn run_admin(pool: &sqlx::PgPool, action: AdminAction) -> anyhow::Result<(
                 level: 0,
                 admin_privilege: Some(role),
                 invited_by: None,
-                available_invitation_count: 0,
             })
             .await?;
             db.process(CreateCreditRow { account: id }).await?;

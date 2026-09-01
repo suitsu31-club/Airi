@@ -32,12 +32,12 @@
 #![deny(clippy::panic)]
 #![warn(clippy::arithmetic_side_effects)]
 
-pub mod entities;
-pub mod rpc;
-pub mod services;
-pub mod events;
-pub mod hooks;
 pub mod config;
 pub mod config_provider;
 pub mod db;
+pub mod entities;
+pub mod events;
+pub mod hooks;
+pub mod rpc;
+pub mod services;
 pub mod utils;

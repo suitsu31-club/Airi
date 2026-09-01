@@ -12,6 +12,7 @@ service AdminManage {
   rpc UnbanUser(UnbanUserRequest) returns (airi.shared.Empty);
   rpc SetUserRole(SetUserRoleRequest) returns (airi.shared.Empty);
   rpc GrantInvitations(GrantInvitationsRequest) returns (GrantInvitationsReply);
+  rpc InvalidateInvite(InvalidateInviteRequest) returns (InvalidateInviteReply);
   rpc GetServerConfig(GetServerConfigRequest) returns (GetServerConfigReply);
   rpc SetServerConfig(SetServerConfigRequest) returns (airi.shared.Empty);
   rpc ListAuditLogs(ListAuditLogsRequest) returns (ListAuditLogsReply);
@@ -62,10 +63,22 @@ message SetUserRoleRequest {
 message GrantInvitationsRequest {
   string user_id = 1;
   int32 count = 2;
+  // Optional slot expiry in seconds; unset means the slots never expire.
+  optional uint64 expire_in_secs = 3;
 }
 
 message GrantInvitationsReply {
+  // The target's available (Free) slot count after the grant.
   int32 new_count = 1;
+}
+
+message InvalidateInviteRequest {
+  int64 invite_id = 1;
+}
+
+message InvalidateInviteReply {
+  // True when the invite was Free or Pending and is now invalidated.
+  bool invalidated = 1;
 }
 
 message GetServerConfigRequest {

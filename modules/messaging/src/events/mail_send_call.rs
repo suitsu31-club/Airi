@@ -6,12 +6,7 @@ use wakuwaku::amqp::{AmqpExchangeType, AmqpMessageSend, AmqpRouting};
 /// Published by: messaging email hooks. Consumed by: `MailerHook`.
 /// Route: exchange `messaging`, key `mail_send`. `Debug` redacts the body.
 #[derive(
-    Clone,
-    rkyv::Archive,
-    rkyv::Serialize,
-    rkyv::Deserialize,
-    RkyvMessageSer,
-    RkyvMessageDe,
+    Clone, rkyv::Archive, rkyv::Serialize, rkyv::Deserialize, RkyvMessageSer, RkyvMessageDe,
 )]
 pub struct MailSendCall {
     /// Optional override sender; defaults to the configured SMTP sender.
