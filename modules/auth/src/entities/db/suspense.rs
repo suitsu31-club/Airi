@@ -33,7 +33,7 @@ pub struct InsertSuspense {
 impl Processor<InsertSuspense> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:InsertSuspense")]
     async fn process(&self, input: InsertSuspense) -> Result<Self::Output, Self::Error> {
         sqlx::query!(
             r#"INSERT INTO auth.account_suspense (account_id, status, reason, operated_by)
@@ -57,7 +57,7 @@ pub struct FindLatestSuspense {
 impl Processor<FindLatestSuspense> for DatabaseProcessor {
     type Output = Option<AccountSuspenseEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:FindLatestSuspense")]
     async fn process(&self, input: FindLatestSuspense) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             AccountSuspenseEntity,
@@ -81,7 +81,7 @@ pub struct IsSuspended {
 impl Processor<IsSuspended> for DatabaseProcessor {
     type Output = bool;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:IsSuspended")]
     async fn process(&self, input: IsSuspended) -> Result<Self::Output, Self::Error> {
         let row = sqlx::query!(
             r#"SELECT status AS "status: SuspenseStatus"

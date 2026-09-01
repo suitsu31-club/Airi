@@ -36,7 +36,7 @@ pub struct CreateInvitation {
 impl Processor<CreateInvitation> for InvitationService {
     type Output = Vec<String>;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:CreateInvitation")]
     async fn process(&self, input: CreateInvitation) -> Result<Self::Output, Self::Error> {
         let role = self
             .db
@@ -85,7 +85,7 @@ pub struct SendInvitation {
 impl Processor<SendInvitation> for InvitationService {
     type Output = SendInvitationResult;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:SendInvitation")]
     async fn process(&self, input: SendInvitation) -> Result<Self::Output, Self::Error> {
         if !input.email.validate_email() {
             return Ok(SendInvitationResult::EmailInvalid);
@@ -154,7 +154,7 @@ pub struct ResendInvitationEmail {
 impl Processor<ResendInvitationEmail> for InvitationService {
     type Output = ResendResult;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:ResendInvitationEmail")]
     async fn process(&self, input: ResendInvitationEmail) -> Result<Self::Output, Self::Error> {
         let Some(pending) = self
             .db
@@ -209,7 +209,7 @@ pub struct ListMyInvitations {
 impl Processor<ListMyInvitations> for InvitationService {
     type Output = MyInvitations;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:ListMyInvitations")]
     async fn process(&self, input: ListMyInvitations) -> Result<Self::Output, Self::Error> {
         let invites = self
             .db

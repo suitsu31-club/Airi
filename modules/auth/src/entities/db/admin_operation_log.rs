@@ -23,7 +23,7 @@ pub struct AddAuditLog {
 impl Processor<AddAuditLog> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:AddAuditLog")]
     async fn process(&self, input: AddAuditLog) -> Result<Self::Output, Self::Error> {
         sqlx::query!(
             r#"INSERT INTO auth.admin_operation_log (admin, operation_name, operation_content)
@@ -47,7 +47,7 @@ pub struct ListAuditLogs {
 impl Processor<ListAuditLogs> for DatabaseProcessor {
     type Output = Vec<AdminOperationLogEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:ListAuditLogs")]
     async fn process(&self, input: ListAuditLogs) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             AdminOperationLogEntity,

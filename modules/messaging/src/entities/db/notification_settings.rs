@@ -22,7 +22,7 @@ pub struct FindNotificationSettingsById {
 impl Processor<FindNotificationSettingsById> for DatabaseProcessor {
     type Output = Option<NotificationSettings>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:FindNotificationSettingsById")]
     async fn process(
         &self,
         input: FindNotificationSettingsById,
@@ -47,7 +47,7 @@ pub struct InitializeNotificationSettings {
 impl Processor<InitializeNotificationSettings> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:InitializeNotificationSettings")]
     async fn process(
         &self,
         input: InitializeNotificationSettings,
@@ -71,7 +71,7 @@ pub struct UpsertNotificationSettings {
 impl Processor<UpsertNotificationSettings> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:UpsertNotificationSettings")]
     async fn process(
         &self,
         input: UpsertNotificationSettings,

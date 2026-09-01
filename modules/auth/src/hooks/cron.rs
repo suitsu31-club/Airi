@@ -21,7 +21,7 @@ impl AmqpMessageProcessor<SessionCleanupSignal> for AuthCronHook {
 impl Processor<SessionCleanupSignal> for AuthCronHook {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Hook:SessionCleanupSignal")]
     async fn process(&self, _input: SessionCleanupSignal) -> Result<Self::Output, Self::Error> {
         self.db
             .process(DeleteExpiredSessions {
@@ -39,7 +39,7 @@ impl AmqpMessageProcessor<InvitationExpiryCleanupSignal> for AuthCronHook {
 impl Processor<InvitationExpiryCleanupSignal> for AuthCronHook {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Hook:InvitationExpiryCleanupSignal")]
     async fn process(
         &self,
         _input: InvitationExpiryCleanupSignal,

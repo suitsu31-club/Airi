@@ -35,7 +35,7 @@ impl AmqpMessageProcessor<UserLoginEvent> for LoginEmailHook {
 impl Processor<UserLoginEvent> for LoginEmailHook {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Hook:UserLoginEvent")]
     async fn process(&self, input: UserLoginEvent) -> Result<Self::Output, Self::Error> {
         let settings = self
             .db

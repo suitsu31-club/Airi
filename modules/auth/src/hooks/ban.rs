@@ -23,7 +23,7 @@ impl AmqpMessageProcessor<SystemBanEvent> for BanHook {
 impl Processor<SystemBanEvent> for BanHook {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Hook:SystemBanEvent")]
     async fn process(&self, input: SystemBanEvent) -> Result<Self::Output, Self::Error> {
         let account_id = AccountId(input.user_id);
         let status = if input.banned {

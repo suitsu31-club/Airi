@@ -26,7 +26,7 @@ pub struct ListAdminUsers {
 impl Processor<ListAdminUsers> for DatabaseProcessor {
     type Output = Vec<AdminUserRow>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:ListAdminUsers")]
     async fn process(&self, input: ListAdminUsers) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             AdminUserRow,
@@ -58,7 +58,7 @@ pub struct GetAdminUser {
 impl Processor<GetAdminUser> for DatabaseProcessor {
     type Output = Option<AdminUserRow>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:GetAdminUser")]
     async fn process(&self, input: GetAdminUser) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             AdminUserRow,

@@ -54,7 +54,7 @@ pub struct GetMyProfile {
 impl Processor<GetMyProfile> for ProfileService {
     type Output = ProfileData;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:GetMyProfile")]
     async fn process(&self, input: GetMyProfile) -> Result<Self::Output, Self::Error> {
         self.load_profile(input.user_id).await
     }
@@ -68,7 +68,7 @@ pub struct GetPublicProfile {
 impl Processor<GetPublicProfile> for ProfileService {
     type Output = ProfileData;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:GetPublicProfile")]
     async fn process(&self, input: GetPublicProfile) -> Result<Self::Output, Self::Error> {
         self.load_profile(input.user_id).await
     }
@@ -82,7 +82,7 @@ pub struct GetMyCredit {
 impl Processor<GetMyCredit> for ProfileService {
     type Output = CreditEntity;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:GetMyCredit")]
     async fn process(&self, input: GetMyCredit) -> Result<Self::Output, Self::Error> {
         let credit = self
             .db
@@ -108,7 +108,7 @@ pub struct GetMyCreditLog {
 impl Processor<GetMyCreditLog> for ProfileService {
     type Output = Vec<CreditChangeHistoryEntity>;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:GetMyCreditLog")]
     async fn process(&self, input: GetMyCreditLog) -> Result<Self::Output, Self::Error> {
         Ok(self
             .db
@@ -129,7 +129,7 @@ pub struct GetMyInvitationSummary {
 impl Processor<GetMyInvitationSummary> for ProfileService {
     type Output = InvitationSummary;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:GetMyInvitationSummary")]
     async fn process(&self, input: GetMyInvitationSummary) -> Result<Self::Output, Self::Error> {
         let membership = self
             .db

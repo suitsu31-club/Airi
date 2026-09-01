@@ -30,7 +30,7 @@ pub struct FindCreditByAccount {
 impl Processor<FindCreditByAccount> for DatabaseProcessor {
     type Output = Option<CreditEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:FindCreditByAccount")]
     async fn process(&self, input: FindCreditByAccount) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             CreditEntity,
@@ -51,7 +51,7 @@ pub struct CreateCreditRow {
 impl Processor<CreateCreditRow> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:CreateCreditRow")]
     async fn process(&self, input: CreateCreditRow) -> Result<Self::Output, Self::Error> {
         sqlx::query!(
             r#"INSERT INTO auth.credit (account) VALUES ($1)
@@ -79,7 +79,7 @@ pub struct ApplyCreditChange {
 impl Processor<ApplyCreditChange> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL-Transaction:ApplyCreditChange")]
     async fn process(&self, input: ApplyCreditChange) -> Result<Self::Output, Self::Error> {
         let mut tx = self.db().begin().await?;
         sqlx::query!(
@@ -120,7 +120,7 @@ pub struct ListCreditHistory {
 impl Processor<ListCreditHistory> for DatabaseProcessor {
     type Output = Vec<CreditChangeHistoryEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:ListCreditHistory")]
     async fn process(&self, input: ListCreditHistory) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             CreditChangeHistoryEntity,

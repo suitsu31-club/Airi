@@ -30,7 +30,7 @@ impl AmqpMessageProcessor<InvitationSentEvent> for InvitationEmailHook {
 impl Processor<InvitationSentEvent> for InvitationEmailHook {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Hook:InvitationSentEvent")]
     async fn process(&self, input: InvitationSentEvent) -> Result<Self::Output, Self::Error> {
         let cfg = find_config_from_redis::<MessagingConfig>(&mut self.config_store.clone()).await?;
         let invite_url = format!(

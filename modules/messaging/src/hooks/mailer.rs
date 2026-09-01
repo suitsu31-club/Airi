@@ -55,7 +55,7 @@ impl AmqpMessageProcessor<MailSendCall> for MailerHook {
 impl Processor<MailSendCall> for MailerHook {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Hook:MailSendCall")]
     async fn process(&self, input: MailSendCall) -> Result<Self::Output, Self::Error> {
         if !self.enabled {
             tracing::info!(

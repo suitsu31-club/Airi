@@ -95,7 +95,7 @@ pub struct CreateInvite {
 impl Processor<CreateInvite> for DatabaseProcessor {
     type Output = InviteEntity;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:CreateInvite")]
     async fn process(&self, input: CreateInvite) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             InviteEntity,
@@ -123,7 +123,7 @@ pub struct FindInviteByToken {
 impl Processor<FindInviteByToken> for DatabaseProcessor {
     type Output = Option<InviteEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:FindInviteByToken")]
     async fn process(&self, input: FindInviteByToken) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             InviteEntity,
@@ -147,7 +147,7 @@ pub struct SetInviteStatus {
 impl Processor<SetInviteStatus> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:SetInviteStatus")]
     async fn process(&self, input: SetInviteStatus) -> Result<Self::Output, Self::Error> {
         sqlx::query!(
             r#"UPDATE auth.invite SET status = $2, last_status_change = now() WHERE id = $1"#,
@@ -168,7 +168,7 @@ pub struct ListInvitesByOwner {
 impl Processor<ListInvitesByOwner> for DatabaseProcessor {
     type Output = Vec<InviteEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:ListInvitesByOwner")]
     async fn process(&self, input: ListInvitesByOwner) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             InviteEntity,
@@ -193,7 +193,7 @@ pub struct CreatePendingInvitation {
 impl Processor<CreatePendingInvitation> for DatabaseProcessor {
     type Output = PendingInvitationEntity;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:CreatePendingInvitation")]
     async fn process(&self, input: CreatePendingInvitation) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             PendingInvitationEntity,
@@ -218,7 +218,7 @@ pub struct FindPendingInvitation {
 impl Processor<FindPendingInvitation> for DatabaseProcessor {
     type Output = Option<PendingInvitationEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:FindPendingInvitation")]
     async fn process(&self, input: FindPendingInvitation) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             PendingInvitationEntity,
@@ -241,7 +241,7 @@ pub struct SetPendingInvitationStatus {
 impl Processor<SetPendingInvitationStatus> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:SetPendingInvitationStatus")]
     async fn process(
         &self,
         input: SetPendingInvitationStatus,
@@ -267,7 +267,7 @@ pub struct TouchPendingInvitation {
 impl Processor<TouchPendingInvitation> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:TouchPendingInvitation")]
     async fn process(&self, input: TouchPendingInvitation) -> Result<Self::Output, Self::Error> {
         sqlx::query!(
             r#"UPDATE auth.pending_invitation SET will_release_at = $2, sent_at = now()
@@ -289,7 +289,7 @@ pub struct ExpireInvitesBefore {
 impl Processor<ExpireInvitesBefore> for DatabaseProcessor {
     type Output = u64;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:ExpireInvitesBefore")]
     async fn process(&self, input: ExpireInvitesBefore) -> Result<Self::Output, Self::Error> {
         let result = sqlx::query!(
             r#"UPDATE auth.invite SET status = 'expired', last_status_change = now()
@@ -311,7 +311,7 @@ pub struct AcceptPendingInvitationsByInvite {
 impl Processor<AcceptPendingInvitationsByInvite> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:AcceptPendingInvitationsByInvite")]
     async fn process(
         &self,
         input: AcceptPendingInvitationsByInvite,
@@ -336,7 +336,7 @@ pub struct ReleaseExpiredPending {
 impl Processor<ReleaseExpiredPending> for DatabaseProcessor {
     type Output = u64;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL-Transaction:ReleaseExpiredPending")]
     async fn process(&self, input: ReleaseExpiredPending) -> Result<Self::Output, Self::Error> {
         let mut tx = self.db().begin().await?;
         let released = sqlx::query!(
@@ -386,7 +386,7 @@ pub struct FindInviteById {
 impl Processor<FindInviteById> for DatabaseProcessor {
     type Output = Option<InviteEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:FindInviteById")]
     async fn process(&self, input: FindInviteById) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             InviteEntity,
@@ -409,7 +409,7 @@ pub struct ListPendingInvitationsByOwner {
 impl Processor<ListPendingInvitationsByOwner> for DatabaseProcessor {
     type Output = Vec<PendingInvitationEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:ListPendingInvitationsByOwner")]
     async fn process(
         &self,
         input: ListPendingInvitationsByOwner,

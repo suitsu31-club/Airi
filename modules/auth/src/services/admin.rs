@@ -72,7 +72,7 @@ pub struct ListUsers {
 impl Processor<ListUsers> for AdminService {
     type Output = Vec<AdminUserRow>;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:ListUsers")]
     async fn process(&self, input: ListUsers) -> Result<Self::Output, Self::Error> {
         let role = self.role_of(input.actor).await?;
         if !READ_ROLES.contains(&role) {
@@ -97,7 +97,7 @@ pub struct GetUser {
 impl Processor<GetUser> for AdminService {
     type Output = Option<AdminUserRow>;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:GetUser")]
     async fn process(&self, input: GetUser) -> Result<Self::Output, Self::Error> {
         let role = self.role_of(input.actor).await?;
         if !READ_ROLES.contains(&role) {
@@ -126,7 +126,7 @@ impl AdminOperation for BanUser {
 impl Processor<BanUser> for AdminService {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:BanUser")]
     async fn process(&self, input: BanUser) -> Result<Self::Output, Self::Error> {
         let role = self.role_of(input.actor).await?;
         if !BanUser::is_allowed(role) {
@@ -169,7 +169,7 @@ impl AdminOperation for UnbanUser {
 impl Processor<UnbanUser> for AdminService {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:UnbanUser")]
     async fn process(&self, input: UnbanUser) -> Result<Self::Output, Self::Error> {
         let role = self.role_of(input.actor).await?;
         if !UnbanUser::is_allowed(role) {
@@ -208,7 +208,7 @@ impl AdminOperation for SetUserRole {
 impl Processor<SetUserRole> for AdminService {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:SetUserRole")]
     async fn process(&self, input: SetUserRole) -> Result<Self::Output, Self::Error> {
         let role = self.role_of(input.actor).await?;
         if !SetUserRole::is_allowed(role) {
@@ -255,7 +255,7 @@ impl AdminOperation for GrantInvitations {
 impl Processor<GrantInvitations> for AdminService {
     type Output = i32;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:GrantInvitations")]
     async fn process(&self, input: GrantInvitations) -> Result<Self::Output, Self::Error> {
         let role = self.role_of(input.actor).await?;
         if !GrantInvitations::is_allowed(role) {
@@ -288,7 +288,7 @@ pub struct GetServerConfig {
 impl Processor<GetServerConfig> for AdminService {
     type Output = String;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:GetServerConfig")]
     async fn process(&self, input: GetServerConfig) -> Result<Self::Output, Self::Error> {
         let role = self.role_of(input.actor).await?;
         if !CONFIG_ROLES.contains(&role) {
@@ -319,7 +319,7 @@ impl AdminOperation for SetServerConfig {
 impl Processor<SetServerConfig> for AdminService {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:SetServerConfig")]
     async fn process(&self, input: SetServerConfig) -> Result<Self::Output, Self::Error> {
         let role = self.role_of(input.actor).await?;
         if !SetServerConfig::is_allowed(role) {
@@ -348,7 +348,7 @@ pub struct ListAuditLogs {
 impl Processor<ListAuditLogs> for AdminService {
     type Output = Vec<AdminOperationLogEntity>;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:ListAuditLogs")]
     async fn process(&self, input: ListAuditLogs) -> Result<Self::Output, Self::Error> {
         let role = self.role_of(input.actor).await?;
         if !CONFIG_ROLES.contains(&role) {

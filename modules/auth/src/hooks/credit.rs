@@ -22,7 +22,7 @@ impl AmqpMessageProcessor<CreditChangeEvent> for CreditHook {
 impl Processor<CreditChangeEvent> for CreditHook {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Hook:CreditChangeEvent")]
     async fn process(&self, input: CreditChangeEvent) -> Result<Self::Output, Self::Error> {
         let available_delta =
             Decimal::from_str(&input.available_delta).map_err(|_| wakuwaku::Error::InvalidInput)?;

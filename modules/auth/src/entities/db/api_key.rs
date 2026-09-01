@@ -60,7 +60,7 @@ pub struct CreateApiKey {
 impl Processor<CreateApiKey> for DatabaseProcessor {
     type Output = UserApiKeyEntity;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:CreateApiKey")]
     async fn process(&self, input: CreateApiKey) -> Result<Self::Output, Self::Error> {
         let id = Uuid::new_v4();
         sqlx::query_as!(
@@ -89,7 +89,7 @@ pub struct FindApiKeyByHash {
 impl Processor<FindApiKeyByHash> for DatabaseProcessor {
     type Output = Option<UserApiKeyEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:FindApiKeyByHash")]
     async fn process(&self, input: FindApiKeyByHash) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             UserApiKeyEntity,
@@ -111,7 +111,7 @@ pub struct ListApiKeysByUser {
 impl Processor<ListApiKeysByUser> for DatabaseProcessor {
     type Output = Vec<UserApiKeyEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:ListApiKeysByUser")]
     async fn process(&self, input: ListApiKeysByUser) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             UserApiKeyEntity,
@@ -134,7 +134,7 @@ pub struct DeleteApiKey {
 impl Processor<DeleteApiKey> for DatabaseProcessor {
     type Output = bool;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:DeleteApiKey")]
     async fn process(&self, input: DeleteApiKey) -> Result<Self::Output, Self::Error> {
         let result = sqlx::query!(
             r#"DELETE FROM auth.user_api_key WHERE id = $1 AND user_id = $2"#,

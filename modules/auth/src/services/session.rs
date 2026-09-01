@@ -67,7 +67,7 @@ pub struct CreateSession {
 impl Processor<CreateSession> for SessionService {
     type Output = SessionId;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:CreateSession")]
     async fn process(&self, input: CreateSession) -> Result<Self::Output, Self::Error> {
         let cfg = find_config_from_redis::<AuthConfig>(&mut self.redis.clone()).await?;
         let id = generate_session_id();
@@ -112,7 +112,7 @@ pub struct RefreshSession {
 impl Processor<RefreshSession> for SessionService {
     type Output = RefreshResult;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:RefreshSession")]
     async fn process(&self, input: RefreshSession) -> Result<Self::Output, Self::Error> {
         let verify = self
             .verifier()
@@ -158,7 +158,7 @@ pub struct TerminateSession {
 impl Processor<TerminateSession> for SessionService {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:TerminateSession")]
     async fn process(&self, input: TerminateSession) -> Result<Self::Output, Self::Error> {
         self.db
             .process(db_session::DeleteSession {
@@ -182,7 +182,7 @@ pub struct TerminateAllSessions {
 impl Processor<TerminateAllSessions> for SessionService {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:TerminateAllSessions")]
     async fn process(&self, input: TerminateAllSessions) -> Result<Self::Output, Self::Error> {
         let sessions = self
             .db
@@ -211,7 +211,7 @@ pub struct ListUserSessions {
 impl Processor<ListUserSessions> for SessionService {
     type Output = Vec<SessionEntity>;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:ListUserSessions")]
     async fn process(&self, input: ListUserSessions) -> Result<Self::Output, Self::Error> {
         Ok(self
             .db

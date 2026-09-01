@@ -18,7 +18,7 @@ impl AmqpMessageProcessor<UserRegisteredEvent> for NotificationInitHook {
 impl Processor<UserRegisteredEvent> for NotificationInitHook {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Hook:UserRegisteredEvent")]
     async fn process(&self, input: UserRegisteredEvent) -> Result<Self::Output, Self::Error> {
         self.db
             .process(InitializeNotificationSettings {

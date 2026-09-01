@@ -51,7 +51,7 @@ pub struct CreateSession {
 impl Processor<CreateSession> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:CreateSession")]
     async fn process(&self, input: CreateSession) -> Result<Self::Output, Self::Error> {
         let s = input.session;
         sqlx::query!(
@@ -82,7 +82,7 @@ pub struct FindSessionById {
 impl Processor<FindSessionById> for DatabaseProcessor {
     type Output = Option<SessionEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:FindSessionById")]
     async fn process(&self, input: FindSessionById) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             SessionEntity,
@@ -107,7 +107,7 @@ pub struct TouchSession {
 impl Processor<TouchSession> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:TouchSession")]
     async fn process(&self, input: TouchSession) -> Result<Self::Output, Self::Error> {
         sqlx::query!(
             r#"UPDATE auth.session SET last_refreshed_at = $2 WHERE session_id = $1"#,
@@ -128,7 +128,7 @@ pub struct DeleteSession {
 impl Processor<DeleteSession> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:DeleteSession")]
     async fn process(&self, input: DeleteSession) -> Result<Self::Output, Self::Error> {
         sqlx::query!(
             r#"DELETE FROM auth.session WHERE session_id = $1"#,
@@ -148,7 +148,7 @@ pub struct ListSessionsByUser {
 impl Processor<ListSessionsByUser> for DatabaseProcessor {
     type Output = Vec<SessionEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:ListSessionsByUser")]
     async fn process(&self, input: ListSessionsByUser) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             SessionEntity,
@@ -172,7 +172,7 @@ pub struct DeleteSessionsByUser {
 impl Processor<DeleteSessionsByUser> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:DeleteSessionsByUser")]
     async fn process(&self, input: DeleteSessionsByUser) -> Result<Self::Output, Self::Error> {
         sqlx::query!(
             r#"DELETE FROM auth.session WHERE user_id = $1"#,
@@ -192,7 +192,7 @@ pub struct DeleteExpiredSessions {
 impl Processor<DeleteExpiredSessions> for DatabaseProcessor {
     type Output = u64;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:DeleteExpiredSessions")]
     async fn process(&self, input: DeleteExpiredSessions) -> Result<Self::Output, Self::Error> {
         let result = sqlx::query!(
             r#"DELETE FROM auth.session

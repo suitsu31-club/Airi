@@ -50,7 +50,7 @@ pub enum RegisterResult {
 impl Processor<Register> for AccountService {
     type Output = RegisterResult;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:Register")]
     async fn process(&self, input: Register) -> Result<Self::Output, Self::Error> {
         if !input.email.validate_email() {
             return Err(wakuwaku::Error::InvalidInput);
@@ -157,7 +157,7 @@ pub enum ChangePasswordResult {
 impl Processor<ChangePassword> for AccountService {
     type Output = ChangePasswordResult;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:ChangePassword")]
     async fn process(&self, input: ChangePassword) -> Result<Self::Output, Self::Error> {
         let account = self
             .db

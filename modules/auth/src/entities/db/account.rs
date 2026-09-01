@@ -27,7 +27,7 @@ pub struct FindAccountById {
 impl Processor<FindAccountById> for DatabaseProcessor {
     type Output = Option<AccountEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:FindAccountById")]
     async fn process(&self, input: FindAccountById) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             AccountEntity,
@@ -48,7 +48,7 @@ pub struct FindAccountByEmail {
 impl Processor<FindAccountByEmail> for DatabaseProcessor {
     type Output = Option<AccountEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:FindAccountByEmail")]
     async fn process(&self, input: FindAccountByEmail) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             AccountEntity,
@@ -69,7 +69,7 @@ pub struct FindAccountByUsername {
 impl Processor<FindAccountByUsername> for DatabaseProcessor {
     type Output = Option<AccountEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:FindAccountByUsername")]
     async fn process(&self, input: FindAccountByUsername) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             AccountEntity,
@@ -102,7 +102,7 @@ pub enum CreateAccountResult {
 impl Processor<CreateAccount> for DatabaseProcessor {
     type Output = CreateAccountResult;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:CreateAccount")]
     async fn process(&self, input: CreateAccount) -> Result<Self::Output, Self::Error> {
         let result = sqlx::query!(
             r#"INSERT INTO auth.account (id, username, email, avatar_url, password_hash)
@@ -137,7 +137,7 @@ pub struct UpdatePasswordHash {
 impl Processor<UpdatePasswordHash> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:UpdatePasswordHash")]
     async fn process(&self, input: UpdatePasswordHash) -> Result<Self::Output, Self::Error> {
         sqlx::query!(
             r#"UPDATE auth.account SET password_hash = $2 WHERE id = $1"#,

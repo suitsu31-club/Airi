@@ -40,7 +40,7 @@ pub enum LoginResult {
 impl Processor<Login> for LoginService {
     type Output = LoginResult;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:Login")]
     async fn process(&self, input: Login) -> Result<Self::Output, Self::Error> {
         let account = self
             .db

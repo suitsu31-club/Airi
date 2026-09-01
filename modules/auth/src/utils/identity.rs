@@ -36,7 +36,7 @@ pub struct VerifiedSession {
 impl Processor<SessionIdVerify> for IdentityVerifier {
     type Error = wakuwaku::Error;
     type Output = VerifiedSession;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SessionIdVerify")]
     async fn process(&self, input: SessionIdVerify) -> Result<Self::Output, Self::Error> {
         let mut conn = self.redis.clone();
         let key = session_cache_key(&input.session_id.0);
@@ -121,7 +121,7 @@ pub struct ApiKeyVerifyOutput {
 impl Processor<ApiKeyVerify> for IdentityVerifier {
     type Error = wakuwaku::Error;
     type Output = ApiKeyVerifyOutput;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "ApiKeyVerify")]
     async fn process(&self, input: ApiKeyVerify) -> Result<Self::Output, Self::Error> {
         let key_hash = hash_api_key(&input.api_key.0);
         let key = self

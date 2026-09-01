@@ -64,7 +64,7 @@ pub struct FindMembershipByAccount {
 impl Processor<FindMembershipByAccount> for DatabaseProcessor {
     type Output = Option<MembershipEntity>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:FindMembershipByAccount")]
     async fn process(&self, input: FindMembershipByAccount) -> Result<Self::Output, Self::Error> {
         sqlx::query_as!(
             MembershipEntity,
@@ -91,7 +91,7 @@ pub struct CreateMembership {
 impl Processor<CreateMembership> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:CreateMembership")]
     async fn process(&self, input: CreateMembership) -> Result<Self::Output, Self::Error> {
         sqlx::query!(
             r#"INSERT INTO auth.membership
@@ -118,7 +118,7 @@ pub struct SetAdminRole {
 impl Processor<SetAdminRole> for DatabaseProcessor {
     type Output = ();
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:SetAdminRole")]
     async fn process(&self, input: SetAdminRole) -> Result<Self::Output, Self::Error> {
         sqlx::query!(
             r#"UPDATE auth.membership SET admin_privilege = $2 WHERE account = $1"#,
@@ -141,7 +141,7 @@ pub struct AdjustInvitationCount {
 impl Processor<AdjustInvitationCount> for DatabaseProcessor {
     type Output = Option<i32>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:AdjustInvitationCount")]
     async fn process(&self, input: AdjustInvitationCount) -> Result<Self::Output, Self::Error> {
         let row = sqlx::query!(
             r#"UPDATE auth.membership
@@ -166,7 +166,7 @@ pub struct GrantInvitations {
 impl Processor<GrantInvitations> for DatabaseProcessor {
     type Output = Option<i32>;
     type Error = sqlx::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "SQL:GrantInvitations")]
     async fn process(&self, input: GrantInvitations) -> Result<Self::Output, Self::Error> {
         let row = sqlx::query!(
             r#"UPDATE auth.membership

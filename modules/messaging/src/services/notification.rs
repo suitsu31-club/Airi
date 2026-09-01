@@ -45,7 +45,7 @@ pub struct GetNotificationSettings {
 impl Processor<GetNotificationSettings> for NotificationSettingsService {
     type Output = NotificationPrefs;
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:GetNotificationSettings")]
     async fn process(&self, input: GetNotificationSettings) -> Result<Self::Output, Self::Error> {
         let settings = self
             .db
@@ -68,7 +68,7 @@ pub struct SetNotificationSettings {
 impl Processor<SetNotificationSettings> for NotificationSettingsService {
     type Output = ();
     type Error = wakuwaku::Error;
-    #[tracing::instrument(skip_all, err)]
+    #[tracing::instrument(skip_all, err, name = "Service:SetNotificationSettings")]
     async fn process(&self, input: SetNotificationSettings) -> Result<Self::Output, Self::Error> {
         let now = now_primitive();
         self.db
