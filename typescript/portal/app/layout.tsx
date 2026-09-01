@@ -5,6 +5,7 @@ import { Providers } from "./providers";
 export const metadata: Metadata = {
   title: "Airi",
   description: "Club membership manage system",
+  icons: "/kazusa-cat.svg"
 };
 
 export default function RootLayout({children}: LayoutProps<"/">) {
