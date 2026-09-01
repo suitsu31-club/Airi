@@ -411,7 +411,21 @@ async fn smoke_end_to_end() {
     let ok_resp = http_get(addr, "/api/me", Some(&admin_key.plaintext)).await;
     assert!(ok_resp.contains("200 OK"), "unexpected: {ok_resp}");
     assert!(ok_resp.contains("\"profile\""), "missing profile: {ok_resp}");
+    assert!(
+        ok_resp.contains("\"by_status\""),
+        "missing invitation grouping: {ok_resp}"
+    );
+    assert!(
+        ok_resp.contains("\"accepted\"") && ok_resp.contains("\"pending\""),
+        "missing invitation status buckets: {ok_resp}"
+    );
     let unauth = http_get(addr, "/api/me", None).await;
     assert!(unauth.contains("401"), "expected 401: {unauth}");
+    let spec = http_get(addr, "/api/openapi.json", None).await;
+    assert!(spec.contains("200 OK"), "openapi doc not served: {spec}");
+    assert!(
+        spec.contains("/api/me") && spec.contains("openapi"),
+        "openapi doc missing content: {spec}"
+    );
     server.abort();
 }

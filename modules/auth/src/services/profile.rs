@@ -154,3 +154,56 @@ impl Processor<GetMyInvitationSummary> for ProfileService {
         })
     }
 }
+
+/// A user's invitations grouped by lifecycle status, alongside the number of
+/// invitations they may still send.
+#[derive(Debug, Clone, Default)]
+pub struct InvitationGrouping {
+    pub available_count: i32,
+    pub accepted: u32,
+    pub expired: u32,
+    pub invalid: u32,
+    pub pending: u32,
+    pub free: u32,
+}
+
+/// Fetch the caller's invitations grouped by their lifecycle status.
+pub struct GetMyInvitationGrouping {
+    pub user_id: AccountId,
+}
+
+impl Processor<GetMyInvitationGrouping> for ProfileService {
+    type Output = InvitationGrouping;
+    type Error = wakuwaku::Error;
+    #[tracing::instrument(skip_all, err, name = "Service:GetMyInvitationGrouping")]
+    async fn process(&self, input: GetMyInvitationGrouping) -> Result<Self::Output, Self::Error> {
+        let membership = self
+            .db
+            .process(FindMembershipByAccount {
+                account: input.user_id,
+            })
+            .await?;
+        let available_count = membership.map_or(0, |m| m.available_invitation_count);
+        let invites = self
+            .db
+            .process(ListInvitesByOwner {
+                owner: input.user_id,
+            })
+            .await?;
+        let mut grouping = InvitationGrouping {
+            available_count,
+            ..Default::default()
+        };
+        for invite in &invites {
+            let bucket = match invite.status {
+                InviteStatus::Accepted => &mut grouping.accepted,
+                InviteStatus::Expired => &mut grouping.expired,
+                InviteStatus::Invalid => &mut grouping.invalid,
+                InviteStatus::Pending => &mut grouping.pending,
+                InviteStatus::Free => &mut grouping.free,
+            };
+            *bucket = bucket.saturating_add(1);
+        }
+        Ok(grouping)
+    }
+}
