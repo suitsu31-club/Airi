@@ -2,8 +2,10 @@
 
 pub mod ban;
 pub mod credit;
+pub mod invitation;
 pub mod cron;
 
 pub use ban::BanHook;
 pub use credit::CreditHook;
+pub use invitation::InvitationSlotHook;
 pub use cron::AuthCronHook;

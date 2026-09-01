@@ -2,11 +2,11 @@
 
 use super::Deps;
 use auth::events::{InvitationExpiryCleanupSignal, SessionCleanupSignal};
-use auth::hooks::{AuthCronHook, BanHook, CreditHook};
+use auth::hooks::{AuthCronHook, BanHook, CreditHook, InvitationSlotHook};
 use auth::services::session::SessionService;
 use base::events::{
-    CreditChangeEvent, InvitationAcceptedEvent, InvitationSentEvent, SystemBanEvent,
-    UserLoginEvent, UserRegisteredEvent,
+    AddInvitationSlotEvent, CreditChangeEvent, InvitationAcceptedEvent, InvitationSentEvent,
+    SystemBanEvent, UserLoginEvent, UserRegisteredEvent,
 };
 use messaging::events::MailSendCall;
 use messaging::hooks::{
@@ -40,6 +40,17 @@ pub async fn run(deps: Deps) -> anyhow::Result<()> {
         };
         let ch = <BanHook as AmqpMessageProcessor<SystemBanEvent>>::ensure_queue(&mq).await?;
         setup_consumer::<SystemBanEvent, BanHook>(&ch, Arc::new(hook)).await?;
+        channels.push(ch);
+    }
+
+    // auth: external invitation-slot grants
+    {
+        let hook = InvitationSlotHook { db: db.clone() };
+        let ch = <InvitationSlotHook as AmqpMessageProcessor<AddInvitationSlotEvent>>::ensure_queue(
+            &mq,
+        )
+        .await?;
+        setup_consumer::<AddInvitationSlotEvent, InvitationSlotHook>(&ch, Arc::new(hook)).await?;
         channels.push(ch);
     }
 
