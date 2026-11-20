@@ -1,0 +1,16 @@
+{
+  "name": "wakuwaku-template-workspace",
+  "version": "0.1.0-alpha",
+  "private": true,
+  "type": "module",
+  "workspaces": [
+    "typescript/*"
+  ],
+  "scripts": {
+    "generate:proto": "bun run --filter app-protobuf generate:proto"
+  },
+  "trustedDependencies": [
+    "grpc-tools",
+    "protobufjs"
+  ]
+}

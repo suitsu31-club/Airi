@@ -1,0 +1,40 @@
+[package]
+name = "app-server"
+version.workspace = true
+authors.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+# Internal
+base = { path = "../../modules/base" }
+app_protobuf = { path = "../../lib/app_protobuf" }
+
+# Runtime
+tokio = { workspace = true }
+
+# Framework
+wakuwaku = { workspace = true }
+kanau = { workspace = true }
+
+# Workers: gRPC / REST / Iggy consumer / cron
+# (Iggy is reached through `wakuwaku::deps::iggy`.)
+tonic = { workspace = true }
+axum = { workspace = true }
+tower = { workspace = true }
+
+# Shared dependencies
+sqlx = { workspace = true }
+redis = { workspace = true }
+
+# Configuration
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+# Observability
+tracing = { workspace = true }
+opentelemetry = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+opentelemetry-appender-tracing = { workspace = true }
