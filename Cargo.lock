@@ -2285,6 +2285,7 @@ dependencies = [
  "tonic",
  "tonic-prost",
  "tracing",
+ "type_safe_data",
  "uuid",
  "wakuwaku",
 ]
@@ -4573,6 +4574,10 @@ checksum = "86a801b3cea342a06d468c8710662aa29e5e05e4f5c0d62f00bbb7f2ad7941c2"
 dependencies = [
  "rand 0.10.2",
 ]
+
+[[package]]
+name = "type_safe_data"
+version = "0.1.0-alpha"
 
 [[package]]
 name = "typenum"
