@@ -239,3 +239,13 @@ workspace.
 3. Keep generated code, gRPC clients, and other shared TypeScript in dedicated
    workspace packages so each concern has exactly one home, just like the Rust
    side.
+
+## Skills
+
+Task-specific procedures live in `.agents/skills/<name>/SKILL.md` (the
+cross-agent Agent Skills layout; `.claude/skills` is a symlink to it). Read the
+matching skill before starting the task:
+
+|Task|Skill|
+|---|---|
+|File, label, triage, or close GitHub issues / PRs; create or sync labels|`.agents/skills/manage-github-issues/SKILL.md`|
