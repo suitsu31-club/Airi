@@ -1,96 +1,68 @@
-# wakuwaku template
+# Airi
 
-An agent-friendly Rust microservices template built on the
-[`wakuwaku`](https://crates.io/crates/wakuwaku) and
-[`kanau`](https://crates.io/crates/kanau) frameworks.
+An identity provider for clubs and small teams, and a template for building
+your internal services on top of it.
 
-It gives you a modular, gRPC-first backend workspace with PostgreSQL, Redis, and
-Apache Iggy wired in, a clean layered module layout, and enough structure that both
-humans and coding agents can add features without guessing where things go.
+Airi works two ways:
 
-## Use this template
+- **As a service.** An unmodified clone runs as the IdP for one organization:
+  a member directory, groups and roles, sign-in, and single sign-on to your
+  other applications.
+- **As a template.** Write your own modules beside the core ones. They key
+  their data by member ID, react to membership events, and check permissions
+  with the same proof the core modules use.
 
-Click **“Use this template”** at the top-right of the GitHub repository page to
-create your own repository from it, then start filling in the modules. Nothing
-here is example-specific — it is an empty, ready-to-extend skeleton.
+> **Status:** pre-release. Milestone 0.1 is tracked in
+> [#1](https://github.com/suitsu31-club/Airi/issues/1); the binaries do not
+> run yet.
 
-## Why "agent friendly"
+## Features (0.1)
 
-- **One layout, repeated everywhere.** Every module has the same shape
-  (`entities`, `services`, `events`, `hooks`, `rpc`, `config`, `utils`), so
-  there is exactly one correct place for each kind of code.
-- **One core abstraction.** All logic is a `kanau` `Processor`
-  (*state + `async fn(Input) -> Result<Output, Error>`*): queries run through
-  capability-typed `Db` handles, business services, cron jobs, and (as
-  `EventHandler`s) event consumers.
-- **Documented conventions.** Each crate carries module-level doc comments with
-  copy-pasteable examples, and [`AGENTS.md`](AGENTS.md) spells out the rules for
-  extending the codebase.
-- **Compile-time safety.** `sqlx` checks queries against the database, a
-  read-only database handle cannot run a write query, wakuwaku's service
-  builder rejects components whose dependencies were never registered, and
-  protobuf contracts are generated, so whole classes of mistakes fail the build.
+- **Directory:** members with lifecycle states, nested groups, roles and
+  grants with end dates, invitations, and join requests with approval.
+- **Sign-in:** passkeys, password with TOTP and recovery codes, email code and
+  magic link, and upstream Google, GitHub, Discord or any OIDC provider.
+- **Single sign-on:** OIDC provider, SAML 2.0, and forward-auth for Caddy,
+  Traefik and nginx. Per-application access rules.
+- **Operations:** service accounts, outbound webhooks, an audit log, and
+  notifications by email or in-app inbox. Email is optional: with no mail
+  relay configured, an operator passes links on by hand.
 
-## Architecture
+Settings that change at run time (applications, users, groups, policies,
+mail) live in the database and the admin console. Anything that changes
+behaviour, such as profile fields, claims or login steps, is code: you
+write a module.
+
+## Modules
+
+| Module | Owns |
+|---|---|
+| `base` | Errors, configuration, the caller and permission-proof contract |
+| `mailer` | Sending rendered email through a relay |
+| `notification` | Messages to a person: channels, templates, preferences, inbox |
+| `membership` | Directory, groups, roles and grants, access rules, invitations |
+| `auth` | Credentials, sessions, the login flow, upstream login, service accounts |
+| `connection` | Application registry, OIDC, SAML, forward-auth, webhooks |
+
+## Stack
+
+Rust on [wakuwaku](https://www.wakuwaku.rs/en) (gRPC, PostgreSQL, Redis,
+Apache Iggy), with a SvelteKit web front end that calls the backend over gRPC.
 
 ```
-bin/
-├── app-server/     # main server binary; runs the modules behind pluggable workers
-└── manage-tool/    # CLI for migrations, config seeding, and admin tasks
-lib/
-└── app_protobuf/   # generated gRPC/protobuf types shared across the workspace (Rust)
-modules/
-└── base/           # foundational + template module; copy its layout for new features
-proto/              # protobuf service/message definitions (the single API source)
-migrations/         # SQLx database migrations (.up.sql / .down.sql)
-typescript/         # Bun workspace for frontend / TypeScript packages
-└── app-protobuf/   # generated gRPC/protobuf TypeScript code, shared by all frontends
+bin/          app-server (gRPC, consumer and cron workers), manage-tool (CLI)
+lib/          app_protobuf: generated Rust gRPC types
+modules/      one crate per module
+proto/        the API definitions
+migrations/   SQL migrations for every module, in order (0001, 0002, ...)
+typescript/   Bun workspace: web app and the generated TypeScript client
 ```
 
-### Tech stack
+## Extending
 
-- **Rust** (edition 2024) async on **Tokio**
-- **wakuwaku** (1.0) — service builder, gRPC registration, cron jobs,
-  capability-typed data access (PostgreSQL via SQLx, Redis), and typed Iggy events
-- **kanau** — the `Processor` abstraction and message-passing tools
-- **gRPC + Tonic** for type-safe APIs
-- **PostgreSQL + SQLx** for storage with compile-time-checked queries
-- **Redis** for caching and ephemeral state
-- **Apache Iggy** for asynchronous inter-module events (per-key ordering, retries)
-- **OpenTelemetry** for tracing and metrics
-- **Bun + TypeScript** for the frontend workspace, sharing one generated API client
+Read [`AGENTS.md`](AGENTS.md) before adding code. It describes the module
+layout, the layer rules, and how modules may use each other.
 
-### How the pieces fit
+## License
 
-`bin/app-server` selects a *worker* (gRPC server, Iggy consumer, cron executor,
-REST/webhook gateway) at startup, builds shared dependencies, and hands control
-to the modules. Each module owns its slice of behaviour and talks to the others
-only through gRPC calls or Iggy events — never by reaching into their internals.
-
-### Frontend / TypeScript
-
-All TypeScript lives under `typescript/` as a single [Bun](https://bun.sh)
-workspace. The `app-protobuf` package holds the gRPC/protobuf code generated
-from `proto/` and is shared by every frontend, so the API client is generated
-**once** rather than duplicated per app. Regenerate it after changing the proto
-definitions:
-
-```sh
-bun install            # fetch the codegen toolchain (once)
-bun run generate:proto # regenerate typescript/app-protobuf/src/generated
-```
-
-Add your own frontend packages (e.g. a SvelteKit app) under `typescript/`; they
-depend on `app-protobuf` via `"workspace:*"` and import the generated types from
-it. See [`AGENTS.md`](AGENTS.md) for the conventions.
-
-## Getting started
-
-1. Create your repo with **“Use this template”**.
-2. Rename the workspace and the `base` module to suit your project.
-3. Add your tables/views under `migrations/`, your API under `proto/`, and your
-   logic under `modules/`.
-4. For a frontend, run `bun install` then `bun run generate:proto`, and add your
-   app under `typescript/`.
-5. Read [`AGENTS.md`](AGENTS.md) before adding code — it describes exactly how to
-   organise each layer.
+[MIT](LICENSE)

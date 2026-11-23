@@ -173,10 +173,14 @@ src/
   `expect_used`, and `panic` lints. No panics on the request path.
 - **Tracing:** instrument entities, services, and RPC handlers with
   `#[tracing::instrument(skip_all, err)]`.
-- **Dependency direction:** `rpc → services → entities/events/config`. A feature
-  module may depend on `base` (and on shared modules), but `base` must not depend
-  on a feature module, and modules must not depend on each other's internals —
-  communicate via gRPC or Iggy events.
+- **Dependency direction:** `rpc → services → entities/events/config` inside a
+  module. Across modules, a layer may use only the **same layer** of another
+  module: `entities/db` may query or reference another module's `entities/db`
+  (foreign keys between modules' tables are allowed), and `services` may call
+  another module's `services`, but `services` must not reach into another
+  module's `entities`. Events are the exception: any module's `hooks` consume
+  another module's `events`. `base` is the shared library every layer may use,
+  and it must not depend on a feature module.
 - **Third-party crates:** reach crates in wakuwaku's API through
   `wakuwaku::deps` (`iggy` only that way). `kanau`, `sqlx`, `redis`, and `tonic`
   are also direct workspace dependencies because derive macros and generated
@@ -186,8 +190,12 @@ src/
   files there, register them in `app_protobuf`'s `build.rs` (Rust side), and
   regenerate the TypeScript side with `bun run generate:proto`. Never hand-edit
   or duplicate generated code.
-- **Migrations:** every schema change is a pair of `.up.sql` / `.down.sql` files
-  in `migrations/`.
+- **Migrations:** every schema change is a pair of `.up.sql` / `.down.sql`
+  files in `migrations/`, for every module (no per-module migration
+  directories). Files are versioned by logical order with a zero-padded number
+  (`0001_<name>.up.sql`, `0002_<name>.up.sql`, …). An up migration is lossless:
+  it keeps existing data, except when its purpose is dropping old data. A down
+  migration may lose data.
 
 ## Adding a new module (checklist)
 
