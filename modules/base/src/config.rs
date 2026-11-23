@@ -8,21 +8,39 @@
 //!
 //! Define a `serde`-(de)serializable struct that implements `Default` and bind
 //! it to a stable config key:
-//!
-//! ```ignore
-//! use serde::{Deserialize, Serialize};
-//!
-//! #[derive(Debug, Clone, Serialize, Deserialize, Default)]
-//! pub struct ExampleConfig {
-//!     pub feature_enabled: bool,
-//!     pub max_items: u32,
-//! }
-//!
-//! // Bind the struct to the key used to store/lookup it in the database/Redis.
-//! // The concrete `ConfigJson`-style trait is provided by whichever module in
-//! // your workspace owns configuration storage.
-//! //
-//! // impl ConfigJson for ExampleConfig {
-//! //     const KEY: &'static str = "example";
-//! // }
-//! ```
+
+use serde::{Deserialize, Serialize};
+use crate::ModuleConfig;
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum RegisterMode {
+    PublicAvailable,
+    #[default]
+    OnlyInvited,
+    Close,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SiteMetadataConfig {
+    pub site_name: String,
+    pub site_description: String,
+    pub site_register_mode: RegisterMode,
+}
+
+impl Default for SiteMetadataConfig {
+    fn default() -> Self {
+        Self {
+            site_name: "Airi".to_owned(),
+            site_description:
+                "Open-source IdP for clubs and small business. This is the default description. Change the description to start yours."
+                    .to_owned(),
+            site_register_mode: RegisterMode::default(),
+        }
+    }
+}
+
+impl ModuleConfig for SiteMetadataConfig {
+    const CONFIG_PREFIX: &'static str = "@base";
+    const CONFIG_KEY: &'static str = "site_metadata";
+}

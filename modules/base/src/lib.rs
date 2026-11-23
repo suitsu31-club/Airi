@@ -46,3 +46,4 @@ pub mod services;
 pub mod utils;
 
 pub use error::{Error, Result};
+pub use entities::db::config::ModuleConfig;
