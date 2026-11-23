@@ -277,6 +277,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1505bd5d3d116872e7271a6d4e16d81d0c8570876c8de68093a09ac269d8aac0"
 
 [[package]]
+name = "auth"
+version = "0.1.0-alpha"
+dependencies = [
+ "anyhow",
+ "app_protobuf",
+ "bytes",
+ "compact_str",
+ "itertools 0.15.0",
+ "kanau",
+ "prost",
+ "prost-types",
+ "redis",
+ "rkyv 0.8.18",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tonic",
+ "tonic-prost",
+ "tracing",
+ "uuid",
+ "wakuwaku",
+]
+
+[[package]]
 name = "autocfg"
 version = "1.5.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -810,6 +839,35 @@ dependencies = [
  "sqlx",
  "static_assertions",
  "zmij",
+]
+
+[[package]]
+name = "connection"
+version = "0.1.0-alpha"
+dependencies = [
+ "anyhow",
+ "app_protobuf",
+ "bytes",
+ "compact_str",
+ "itertools 0.15.0",
+ "kanau",
+ "prost",
+ "prost-types",
+ "redis",
+ "rkyv 0.8.18",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tonic",
+ "tonic-prost",
+ "tracing",
+ "uuid",
+ "wakuwaku",
 ]
 
 [[package]]
@@ -2203,6 +2261,35 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4050469837a6ff301cd14c1f8f24f88549e6d548f24f64e2148eb0f72cebc51f"
 
 [[package]]
+name = "mailer"
+version = "0.1.0-alpha"
+dependencies = [
+ "anyhow",
+ "app_protobuf",
+ "bytes",
+ "compact_str",
+ "itertools 0.15.0",
+ "kanau",
+ "prost",
+ "prost-types",
+ "redis",
+ "rkyv 0.8.18",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tonic",
+ "tonic-prost",
+ "tracing",
+ "uuid",
+ "wakuwaku",
+]
+
+[[package]]
 name = "manage-tool"
 version = "0.1.0-alpha"
 dependencies = [
@@ -2233,6 +2320,35 @@ checksum = "69b6441f590336821bb897fb28fc622898ccceb1d6cea3fde5ea86b090c4de98"
 dependencies = [
  "cfg-if",
  "digest 0.11.3",
+]
+
+[[package]]
+name = "membership"
+version = "0.1.0-alpha"
+dependencies = [
+ "anyhow",
+ "app_protobuf",
+ "bytes",
+ "compact_str",
+ "itertools 0.15.0",
+ "kanau",
+ "prost",
+ "prost-types",
+ "redis",
+ "rkyv 0.8.18",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tonic",
+ "tonic-prost",
+ "tracing",
+ "uuid",
+ "wakuwaku",
 ]
 
 [[package]]
@@ -2282,6 +2398,35 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 2.0.119",
+]
+
+[[package]]
+name = "notification"
+version = "0.1.0-alpha"
+dependencies = [
+ "anyhow",
+ "app_protobuf",
+ "bytes",
+ "compact_str",
+ "itertools 0.15.0",
+ "kanau",
+ "prost",
+ "prost-types",
+ "redis",
+ "rkyv 0.8.18",
+ "rust_decimal",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "sqlx",
+ "thiserror",
+ "time",
+ "tokio",
+ "tonic",
+ "tonic-prost",
+ "tracing",
+ "uuid",
+ "wakuwaku",
 ]
 
 [[package]]

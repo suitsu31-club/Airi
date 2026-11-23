@@ -1,6 +1,16 @@
 [workspace]
 resolver = "3"
-members = ["bin/app-server", "bin/manage-tool", "lib/app_protobuf", "modules/base"]
+members = [
+    "bin/app-server",
+    "bin/manage-tool",
+    "lib/app_protobuf",
+    "modules/auth",
+    "modules/base",
+    "modules/connection",
+    "modules/mailer",
+    "modules/membership",
+    "modules/notification"
+]
 
 [workspace.package]
 version = "0.1.0-alpha"
