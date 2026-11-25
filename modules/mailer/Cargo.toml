@@ -47,3 +47,4 @@ tracing = { workspace = true }
 
 # Algorithm
 itertools = { workspace = true }
+blake3 = { workspace = true }
