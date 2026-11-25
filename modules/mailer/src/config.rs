@@ -24,6 +24,9 @@ pub struct MailerConfig {
     /// A message queued this long ago that the transport never attempted
     /// is marked failed: its `EmailQueued` was lost.
     pub stale_after_secs: u32,
+    /// Seconds. The retention job deletes the body of a message created this
+    /// long ago, unless it is still queued or held.
+    pub delete_mail_older_than: u32,
 }
 
 impl Default for MailerConfig {
@@ -31,6 +34,7 @@ impl Default for MailerConfig {
         Self {
             mode: MailerMode::default(),
             stale_after_secs: 60 * 60,
+            delete_mail_older_than: 30 * 24 * 60 * 60,
         }
     }
 }

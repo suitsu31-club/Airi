@@ -46,3 +46,7 @@ CREATE INDEX "send_box_status_mail_id" ON "mailer"."send_box" ("status", "mail_i
 -- The fallback job: queued messages the transport never attempted.
 CREATE INDEX "send_box_unattempted_queued_at" ON "mailer"."send_box" ("queued_at")
     WHERE "status" = 'queued' AND "attempted_at" IS NULL;
+
+-- The retention job: messages that still have a body.
+CREATE INDEX "send_box_content_created_at" ON "mailer"."send_box" ("created_at")
+    WHERE "message_content" IS NOT NULL;

@@ -6,3 +6,4 @@
 //! [`services`](crate::services) instead.
 
 pub mod secret_key;
+pub mod time;

@@ -93,4 +93,5 @@
 
 #[cfg(feature = "delivery")]
 pub mod delivery;
+pub mod mail_retention;
 pub mod stale_mail;

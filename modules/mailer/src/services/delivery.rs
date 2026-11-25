@@ -1,5 +1,5 @@
 //! `MailDeliveryService`: hands queued messages to their sender's SMTP relay
-//! (feature `delivery`).
+//! (feature `delivery`), and sends test messages for operators.
 //!
 //! Each message is sent over its own connection, so a sender's decrypted
 //! credentials live only while that message is sent.
@@ -14,12 +14,14 @@ use crate::entities::db::send_box::{
     CancelMail, EmailFormat, FindMailById, MailId, MailStatus, MarkMailAttempted, MarkMailFailed,
     MarkMailSent, SendBoxEntity,
 };
-use crate::entities::db::sender::{FindSmtpSenderById, SmtpSenderEntity, SmtpTlsMode};
+use crate::entities::db::sender::{
+    FindSmtpSenderById, SmtpSenderEntity, SmtpSenderId, SmtpTlsMode,
+};
 use crate::events::delivery::EmailSent;
-use crate::utils::secret_key::{SecretKeyError, secret_key_from_env};
 use anyhow::anyhow;
 use base::Error;
 use base::services::config::{ConfigLoader, LoadConfig};
+use itertools::Itertools;
 use kanau::processor::Processor;
 use lettre::message::Mailbox;
 use lettre::message::header::ContentType;
@@ -28,6 +30,7 @@ use lettre::{Address, AsyncSmtpTransport, AsyncTransport, Message, Tokio1Executo
 use std::sync::Arc;
 use time::{OffsetDateTime, PrimitiveDateTime};
 use type_safe_data::encryption::Key256;
+use type_safe_data::mail::EmailAddress;
 use wakuwaku::entity::sqlx::backend::PgSource;
 use wakuwaku::entity::{Db, ReadWrite};
 use wakuwaku::iggy::Publisher;
@@ -38,24 +41,26 @@ pub struct MailDeliveryService {
     db: Db<PgSource, ReadWrite>,
     publisher: Publisher,
     config: ConfigLoader,
-    /// `None` while `MAILER_SECRET_KEY` is unset: only senders without
-    /// credentials can deliver.
+    /// `None` without `MAILER_SECRET_KEY`: only senders without credentials
+    /// can deliver.
     secret_key: Option<Arc<Key256>>,
 }
 
 impl MailDeliveryService {
-    /// Reads `MAILER_SECRET_KEY`; fails if it is set but malformed.
-    pub fn new(
+    /// `secret_key` is the key from
+    /// [`secret_key_from_env`](crate::utils::secret_key::secret_key_from_env).
+    pub const fn new(
         db: Db<PgSource, ReadWrite>,
         publisher: Publisher,
         config: ConfigLoader,
-    ) -> Result<Self, SecretKeyError> {
-        Ok(Self {
+        secret_key: Option<Arc<Key256>>,
+    ) -> Self {
+        Self {
             db,
             publisher,
             config,
-            secret_key: secret_key_from_env()?.map(Arc::new),
-        })
+            secret_key,
+        }
     }
 }
 
@@ -172,6 +177,55 @@ impl Processor<DeliverMail> for MailDeliveryService {
     }
 }
 
+/// Send one test message to `send_to` through a sender, so an operator can
+/// check its relay settings and credentials. Works whatever the mode and
+/// whether the sender is enabled; nothing is stored.
+#[derive(Debug, Clone)]
+pub struct TestTransport {
+    pub sender_id: SmtpSenderId,
+    pub send_to: EmailAddress,
+}
+
+/// What the relay answered to [`TestTransport`].
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct RelayAnswer {
+    /// The relay accepted the message.
+    pub accepted: bool,
+    /// The relay's reply (`250 …`), or why the message was not accepted:
+    /// its rejection, or the connection or TLS failure.
+    pub reply: String,
+}
+
+impl Processor<TestTransport> for MailDeliveryService {
+    type Output = RelayAnswer;
+    type Error = Error;
+
+    /// Fails with `NotFound` for an unknown sender, and with `Io` when the
+    /// credentials can't be decrypted; the relay's answer is the output.
+    #[tracing::instrument(skip_all, err)]
+    async fn process(&self, input: TestTransport) -> Result<RelayAnswer, Error> {
+        let sender = self
+            .db
+            .process(FindSmtpSenderById {
+                id: input.sender_id,
+            })
+            .await?
+            .ok_or(Error::NotFound)?;
+        let message = test_message(&sender, &input.send_to)
+            .map_err(|reason| Error::BusinessPanic(anyhow!(reason)))?;
+        Ok(match self.transport(&sender)?.send(message).await {
+            Ok(response) => RelayAnswer {
+                accepted: true,
+                reply: format!("{} {}", response.code(), response.message().join(" ")),
+            },
+            Err(error) => RelayAnswer {
+                accepted: false,
+                reply: error.to_string(),
+            },
+        })
+    }
+}
+
 impl MailDeliveryService {
     /// A transport for one message through `sender`, holding its decrypted
     /// credentials.
@@ -272,7 +326,6 @@ fn build_message(sender: &SmtpSenderEntity, mail: &SendBoxEntity) -> Result<Mess
         .message_content
         .as_ref()
         .ok_or("the message body was deleted")?;
-    let from = Mailbox::new(None, parse_address(sender.address.as_ref())?);
     let to = Mailbox::new(
         Some(mail.send_to_name.clone()).filter(|name| !name.is_empty()),
         parse_address(mail.send_to_address.as_ref())?,
@@ -281,14 +334,38 @@ fn build_message(sender: &SmtpSenderEntity, mail: &SendBoxEntity) -> Result<Mess
         EmailFormat::Plain => ContentType::TEXT_PLAIN,
         EmailFormat::Html => ContentType::TEXT_HTML,
     };
+    compose(sender, to, &mail.title, content_type, content.0.clone())
+}
+
+/// The message [`TestTransport`] sends.
+fn test_message(sender: &SmtpSenderEntity, send_to: &EmailAddress) -> Result<Message, String> {
+    compose(
+        sender,
+        Mailbox::new(None, parse_address(send_to.as_ref())?),
+        &format!("Test message from sender {}", sender.name),
+        ContentType::TEXT_PLAIN,
+        format!(
+            "The sender {} delivered this message through {}:{}.\n",
+            sender.name, sender.host, sender.port
+        ),
+    )
+}
+
+fn compose(
+    sender: &SmtpSenderEntity,
+    to: Mailbox,
+    subject: &str,
+    content_type: ContentType,
+    body: String,
+) -> Result<Message, String> {
     // `message_id(None)` generates `<random@this host>`.
     Message::builder()
         .message_id(None)
-        .from(from)
+        .from(Mailbox::new(None, parse_address(sender.address.as_ref())?))
         .to(to)
-        .subject(mail.title.as_str())
+        .subject(subject)
         .header(content_type)
-        .body(content.0.clone())
+        .body(body)
         .map_err(|error| error.to_string())
 }
 

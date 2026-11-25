@@ -8,11 +8,11 @@
 
 use crate::config::MailerConfig;
 use crate::entities::db::send_box::FailUnattemptedMail;
+use crate::utils::time::utc_secs_before;
 use base::Error;
 use base::services::config::{ConfigLoader, LoadConfig};
 use kanau::processor::Processor;
 use std::time::Duration;
-use time::{OffsetDateTime, PrimitiveDateTime, UtcOffset};
 use wakuwaku::entity::sqlx::backend::PgSource;
 use wakuwaku::entity::{Db, ReadWrite};
 use wakuwaku::{CronJob, CronJobInterval, CronTick};
@@ -40,10 +40,7 @@ impl Processor<CronTick> for FailStaleMail {
             .config
             .process(LoadConfig::<MailerConfig>::new())
             .await?;
-        let now = OffsetDateTime::from(tick.fired_at).to_offset(UtcOffset::UTC);
-        let Some(queued_before) = PrimitiveDateTime::new(now.date(), now.time())
-            .checked_sub(time::Duration::seconds(i64::from(config.stale_after_secs)))
-        else {
+        let Some(queued_before) = utc_secs_before(tick.fired_at, config.stale_after_secs) else {
             return Ok(());
         };
         let failed = self
