@@ -5,6 +5,7 @@ use type_safe_data::mail::EmailAddress;
 #[derive(Debug, Clone, Copy)]
 pub struct MailId(pub i64);
 
+#[derive(Debug, Clone)]
 pub struct SendBoxEntity {
     pub mail_id: MailId,
     pub send_to_address: EmailAddress,
@@ -24,13 +25,17 @@ pub struct SendBoxEntity {
     pub status: MailStatus,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum EmailFormat {
     Plain,
     Html,
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum MailStatus {
     Sent,
     Pending,
     Cancelled,
 }
+
+impl wakuwaku::entity::Entity for SendBoxEntity {}
