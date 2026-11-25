@@ -1,10 +1,9 @@
 //! The `mailer.send_box` table: every message `SendEmail` accepted, and how
 //! far its delivery got.
 //!
-//! A message is stored `queued` (the transport delivers it) or `held` (the
-//! `none` transport: an operator reads it). Each status change below is
-//! guarded by the status it leaves, so a repeated event or a race between two
-//! replicas changes a message at most once.
+//! `SendEmail` stores a message `queued`, for the transport to deliver. Each
+//! status change below is guarded by the status it leaves, so a repeated
+//! event or a race between two replicas changes a message at most once.
 
 use crate::entities::db::sender::SmtpSenderId;
 use sqlx::encode::IsNull;
@@ -135,9 +134,10 @@ impl<'r> Decode<'r, Postgres> for EmailFormat {
 pub enum MailStatus {
     /// Waiting for the transport.
     Queued,
-    /// Stored by the `none` transport for an operator to read.
+    /// Kept for an operator to review; [`QueueHeldMail`] sends it.
     Held,
-    /// The relay accepted it.
+    /// The relay accepted it, or it was marked sent without delivery: it
+    /// had no sender, or the transport was in mocked mode.
     Sent,
     /// The relay rejected it permanently.
     Failed,

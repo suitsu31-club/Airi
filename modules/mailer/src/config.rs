@@ -8,7 +8,8 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, Eq, PartialEq, Deserialize, Serialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum MailerMode {
-    /// No transport: messages are stored `held` for an operator to read.
+    /// No transport: the delivery hook marks queued messages sent without
+    /// delivering them.
     #[default]
     Mocked,
     /// Messages are stored `queued` and delivered by the SMTP transport.

@@ -53,4 +53,6 @@
 //! }
 //! ```
 
+#[cfg(feature = "delivery")]
+pub mod delivery;
 pub mod mailer;

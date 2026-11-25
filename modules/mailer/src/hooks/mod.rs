@@ -91,4 +91,6 @@
 //! }
 //! ```
 
+#[cfg(feature = "delivery")]
+pub mod delivery;
 pub mod stale_mail;

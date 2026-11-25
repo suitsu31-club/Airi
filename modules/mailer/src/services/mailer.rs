@@ -15,12 +15,10 @@
 //! mailer.process(SendEmail { send_as, ..mail }).await?;
 //! ```
 
-use crate::config::{MailerConfig, MailerMode};
 use crate::entities::db::send_box::{InsertMail, InsertMailOutcome};
 use crate::entities::db::sender::{FindSmtpSenderByName, SmtpSenderId};
 use crate::events::outbound::EmailQueued;
 use base::Error;
-use base::services::config::{ConfigLoader, LoadConfig};
 use kanau::processor::Processor;
 use time::PrimitiveDateTime;
 use type_safe_data::mail::EmailAddress;
@@ -43,20 +41,11 @@ pub static SENDER_DISABLED: DeniedReason = DeniedReason("the sender is disabled"
 pub struct MailerService {
     db: Db<PgSource, ReadWrite>,
     publisher: Publisher,
-    config: ConfigLoader,
 }
 
 impl MailerService {
-    pub const fn new(
-        db: Db<PgSource, ReadWrite>,
-        publisher: Publisher,
-        config: ConfigLoader,
-    ) -> Self {
-        Self {
-            db,
-            publisher,
-            config,
-        }
+    pub const fn new(db: Db<PgSource, ReadWrite>, publisher: Publisher) -> Self {
+        Self { db, publisher }
     }
 }
 
@@ -130,9 +119,9 @@ pub struct SendEmail {
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct AcceptedMail {
     pub mail_id: MailId,
-    /// `Queued`: handed to the transport. `Held`: kept for an operator
-    /// (mocked mode). `Sent`: there was no sender. Any other status: the
-    /// request was repeated after the message was processed.
+    /// `Queued`: handed to the transport, which in mocked mode marks it sent
+    /// without delivering it. `Sent`: there was no sender. Any other status:
+    /// the request was repeated after the message was processed.
     pub status: MailStatus,
 }
 
@@ -142,14 +131,6 @@ impl Processor<SendEmail> for MailerService {
 
     #[tracing::instrument(skip_all, err)]
     async fn process(&self, input: SendEmail) -> Result<AcceptedMail, Error> {
-        let config = self
-            .config
-            .process(LoadConfig::<MailerConfig>::new())
-            .await?;
-        let status = match config.mode {
-            MailerMode::Mocked => MailStatus::Held,
-            MailerMode::Smtp => MailStatus::Queued,
-        };
         let outcome = self
             .db
             .process(InsertMail {
@@ -160,7 +141,7 @@ impl Processor<SendEmail> for MailerService {
                 title: input.title,
                 message_content: input.content,
                 format: input.format,
-                status,
+                status: MailStatus::Queued,
                 send_before_or_cancel: input.send_before_or_cancel,
             })
             .await?;
