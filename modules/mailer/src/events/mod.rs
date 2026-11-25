@@ -76,3 +76,6 @@
 //!
 //! wakuwaku does not create the stream or the main topic: create both (with
 //! their partition count) before publishing or consuming; see `manage-tool`.
+
+pub mod delivery;
+pub mod outbound;

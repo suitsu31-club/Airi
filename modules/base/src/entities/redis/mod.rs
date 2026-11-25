@@ -48,3 +48,5 @@
 //! [`Query`](wakuwaku::entity::Query) plus
 //! `Execute<RedisSource<C>>` for `C: redis::aio::ConnectionLike + Clone + Send + Sync`,
 //! failing with `redis::RedisError`.
+
+pub mod config;

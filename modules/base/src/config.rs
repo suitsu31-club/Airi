@@ -1,13 +1,14 @@
 //! Module configuration.
 //!
-//! Put the strongly typed configuration for this module here. The convention in
-//! this stack is to store configuration as JSON in the database (one row per
-//! key in a shared application-config table) and cache it in Redis so services
-//! can load it cheaply and read-only at runtime. The management CLI seeds the
-//! defaults; a refresh step copies the database value into the Redis cache.
+//! Put the strongly typed configuration for this module here. Configuration
+//! is stored as JSON in `base.module_config` (one row per key) and cached in
+//! Redis. Services read it with
+//! [`ConfigLoader`](crate::services::config::ConfigLoader) and change it with
+//! [`ConfigUpdater`](crate::services::config::ConfigUpdater), which drops the
+//! cached copy; the management CLI seeds the defaults.
 //!
 //! Define a `serde`-(de)serializable struct that implements `Default` and bind
-//! it to a stable config key:
+//! it to a stable config key with [`ModuleConfig`]:
 
 use serde::{Deserialize, Serialize};
 use crate::ModuleConfig;
