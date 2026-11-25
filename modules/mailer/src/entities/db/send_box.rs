@@ -77,6 +77,11 @@ pub struct SendBoxEntity {
 
     /// UTC.
     pub created_at: PrimitiveDateTime,
+    /// UTC. When the message last became `Queued`; always set while it is.
+    pub queued_at: Option<PrimitiveDateTime>,
+    /// UTC. When the transport last tried to deliver it; `None` if it never
+    /// did.
+    pub attempted_at: Option<PrimitiveDateTime>,
     /// UTC; set exactly when `status` is `Sent`.
     pub sent_at: Option<PrimitiveDateTime>,
     /// UTC. The mail must be sent before this time, or it will be cancelled.
@@ -277,10 +282,11 @@ impl Execute<PgSource> for InsertMail {
             INSERT INTO "mailer"."send_box" (
                 "idempotency_key", "send_to_address", "send_to_name", "send_as",
                 "title", "message_content", "format", "status", "send_before_or_cancel",
-                "sent_at"
+                "queued_at", "sent_at"
             )
             VALUES (
                 $1, $2, $3, $4, $5, $6, $7, $8, $9,
+                CASE WHEN $8 = 'queued' THEN now() AT TIME ZONE 'UTC' END,
                 CASE WHEN $8 = 'sent' THEN now() AT TIME ZONE 'UTC' END
             )
             ON CONFLICT ("idempotency_key") DO NOTHING
@@ -291,7 +297,8 @@ impl Execute<PgSource> for InsertMail {
                 "send_as" AS "send_as: SmtpSenderId", "title",
                 "message_content" AS "message_content: MailContent",
                 "format" AS "format: EmailFormat", "status" AS "status: MailStatus",
-                "failure_reply", "created_at", "sent_at", "send_before_or_cancel"
+                "failure_reply", "created_at", "queued_at", "attempted_at", "sent_at",
+                "send_before_or_cancel"
             "#,
             idempotency_key as IdempotencyKey,
             self.send_to_address as EmailAddress,
@@ -321,7 +328,8 @@ impl Execute<PgSource> for InsertMail {
                 "send_as" AS "send_as: SmtpSenderId", "title",
                 "message_content" AS "message_content: MailContent",
                 "format" AS "format: EmailFormat", "status" AS "status: MailStatus",
-                "failure_reply", "created_at", "sent_at", "send_before_or_cancel"
+                "failure_reply", "created_at", "queued_at", "attempted_at", "sent_at",
+                "send_before_or_cancel"
             FROM "mailer"."send_box"
             WHERE "idempotency_key" = $1
             "#,
@@ -358,7 +366,8 @@ impl Execute<PgSource> for FindMailById {
                 "send_as" AS "send_as: SmtpSenderId", "title",
                 "message_content" AS "message_content: MailContent",
                 "format" AS "format: EmailFormat", "status" AS "status: MailStatus",
-                "failure_reply", "created_at", "sent_at", "send_before_or_cancel"
+                "failure_reply", "created_at", "queued_at", "attempted_at", "sent_at",
+                "send_before_or_cancel"
             FROM "mailer"."send_box"
             WHERE "mail_id" = $1
             "#,
@@ -399,7 +408,8 @@ impl Execute<PgSource> for ListMail {
                 "send_as" AS "send_as: SmtpSenderId", "title",
                 "message_content" AS "message_content: MailContent",
                 "format" AS "format: EmailFormat", "status" AS "status: MailStatus",
-                "failure_reply", "created_at", "sent_at", "send_before_or_cancel"
+                "failure_reply", "created_at", "queued_at", "attempted_at", "sent_at",
+                "send_before_or_cancel"
             FROM "mailer"."send_box"
             WHERE ($1::text IS NULL OR "status" = $1)
               AND ($2::bigint IS NULL OR "mail_id" < $2)
@@ -531,7 +541,7 @@ impl Execute<PgSource> for QueueHeldMail {
         let result = sqlx::query!(
             r#"
             UPDATE "mailer"."send_box"
-            SET "status" = 'queued'
+            SET "status" = 'queued', "queued_at" = now() AT TIME ZONE 'UTC'
             WHERE "mail_id" = $1 AND "status" = 'held'
             "#,
             self.mail_id as MailId,
@@ -539,6 +549,71 @@ impl Execute<PgSource> for QueueHeldMail {
         .execute(conn)
         .await?;
         Ok(result.rows_affected() > 0)
+    }
+}
+
+/// Record that the transport is trying to deliver a queued message, so the
+/// fallback job leaves it alone. Outputs whether the message was queued.
+#[derive(Debug, Clone, Copy)]
+pub struct MarkMailAttempted {
+    pub mail_id: MailId,
+}
+
+impl Query for MarkMailAttempted {
+    type Effect = Write<SendBoxEntity>;
+}
+
+impl Execute<PgSource> for MarkMailAttempted {
+    type Output = bool;
+    type Error = sqlx::Error;
+
+    #[tracing::instrument(skip_all, err)]
+    async fn execute(self, conn: &mut PgConnection) -> Result<Self::Output, Self::Error> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE "mailer"."send_box"
+            SET "attempted_at" = now() AT TIME ZONE 'UTC'
+            WHERE "mail_id" = $1 AND "status" = 'queued'
+            "#,
+            self.mail_id as MailId,
+        )
+        .execute(conn)
+        .await?;
+        Ok(result.rows_affected() > 0)
+    }
+}
+
+/// `queued` → `failed` for every message queued before `queued_before` (UTC)
+/// that the transport never attempted: its `EmailQueued` was lost. Outputs
+/// how many messages failed.
+#[derive(Debug, Clone)]
+pub struct FailUnattemptedMail {
+    pub queued_before: PrimitiveDateTime,
+    pub failure_reply: String,
+}
+
+impl Query for FailUnattemptedMail {
+    type Effect = Write<SendBoxEntity>;
+}
+
+impl Execute<PgSource> for FailUnattemptedMail {
+    type Output = u64;
+    type Error = sqlx::Error;
+
+    #[tracing::instrument(skip_all, err)]
+    async fn execute(self, conn: &mut PgConnection) -> Result<Self::Output, Self::Error> {
+        let result = sqlx::query!(
+            r#"
+            UPDATE "mailer"."send_box"
+            SET "status" = 'failed', "failure_reply" = $2
+            WHERE "status" = 'queued' AND "attempted_at" IS NULL AND "queued_at" < $1
+            "#,
+            self.queued_before,
+            self.failure_reply,
+        )
+        .execute(conn)
+        .await?;
+        Ok(result.rows_affected())
     }
 }
 

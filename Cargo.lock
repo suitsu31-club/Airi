@@ -2281,6 +2281,7 @@ version = "0.1.0-alpha"
 dependencies = [
  "anyhow",
  "app_protobuf",
+ "base",
  "blake3",
  "bytes",
  "compact_str",

@@ -90,3 +90,5 @@
 //!     const INTERVAL: CronJobInterval = CronJobInterval::AtLeast(Duration::from_secs(60));
 //! }
 //! ```
+
+pub mod stale_mail;

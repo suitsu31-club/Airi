@@ -22,6 +22,11 @@ CREATE TABLE "mailer"."send_box" (
     -- What the relay answered when it rejected the message.
     "failure_reply"         text,
     "created_at"            timestamp NOT NULL DEFAULT (now() AT TIME ZONE 'UTC'),
+    -- When the message last became `queued`: stored queued, or an operator
+    -- queued a held message.
+    "queued_at"             timestamp,
+    -- When the transport last tried to deliver it; NULL if it never did.
+    "attempted_at"          timestamp,
     "sent_at"               timestamp,
     -- A message still unsent at this time is cancelled instead.
     "send_before_or_cancel" timestamp,
@@ -30,8 +35,14 @@ CREATE TABLE "mailer"."send_box" (
     CONSTRAINT "send_box_failure_reply_iff_failed"
         CHECK (("status" = 'failed') = ("failure_reply" IS NOT NULL)),
     CONSTRAINT "send_box_no_sender_is_sent"
-        CHECK ("send_as" IS NOT NULL OR "status" = 'sent')
+        CHECK ("send_as" IS NOT NULL OR "status" = 'sent'),
+    CONSTRAINT "send_box_queued_has_queued_at"
+        CHECK ("status" <> 'queued' OR "queued_at" IS NOT NULL)
 );
 
 -- Listing by status (held messages for the admin console), newest first.
 CREATE INDEX "send_box_status_mail_id" ON "mailer"."send_box" ("status", "mail_id");
+
+-- The fallback job: queued messages the transport never attempted.
+CREATE INDEX "send_box_unattempted_queued_at" ON "mailer"."send_box" ("queued_at")
+    WHERE "status" = 'queued' AND "attempted_at" IS NULL;

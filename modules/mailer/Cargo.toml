@@ -8,6 +8,7 @@ license.workspace = true
 [dependencies]
 # Internal
 app_protobuf = { path = "../../lib/app_protobuf" }
+base = { path = "../base" }
 type_safe_data = {path = "../../lib/type_safe_data"}
 
 # Framework
