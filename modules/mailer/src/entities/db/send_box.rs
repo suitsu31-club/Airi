@@ -553,7 +553,7 @@ impl Execute<PgSource> for QueueHeldMail {
 }
 
 /// Record that the transport is trying to deliver a queued message, so the
-/// fallback job leaves it alone. Outputs whether the message was queued.
+/// stale job counts from this attempt. Outputs whether the message was queued.
 #[derive(Debug, Clone, Copy)]
 pub struct MarkMailAttempted {
     pub mail_id: MailId,
@@ -583,20 +583,20 @@ impl Execute<PgSource> for MarkMailAttempted {
     }
 }
 
-/// `queued` → `failed` for every message queued before `queued_before` (UTC)
-/// that the transport never attempted: its `EmailQueued` was lost. Outputs
-/// how many messages failed.
+/// `queued` → `failed` for every message neither queued nor attempted since
+/// `last_activity_before` (UTC): its `EmailQueued` was lost, or the consumer
+/// gave up retrying it. Outputs how many messages failed.
 #[derive(Debug, Clone)]
-pub struct FailUnattemptedMail {
-    pub queued_before: PrimitiveDateTime,
+pub struct FailStaleQueuedMail {
+    pub last_activity_before: PrimitiveDateTime,
     pub failure_reply: String,
 }
 
-impl Query for FailUnattemptedMail {
+impl Query for FailStaleQueuedMail {
     type Effect = Write<SendBoxEntity>;
 }
 
-impl Execute<PgSource> for FailUnattemptedMail {
+impl Execute<PgSource> for FailStaleQueuedMail {
     type Output = u64;
     type Error = sqlx::Error;
 
@@ -606,9 +606,10 @@ impl Execute<PgSource> for FailUnattemptedMail {
             r#"
             UPDATE "mailer"."send_box"
             SET "status" = 'failed', "failure_reply" = $2
-            WHERE "status" = 'queued' AND "attempted_at" IS NULL AND "queued_at" < $1
+            WHERE "status" = 'queued'
+              AND GREATEST("queued_at", "attempted_at") < $1
             "#,
-            self.queued_before,
+            self.last_activity_before,
             self.failure_reply,
         )
         .execute(conn)

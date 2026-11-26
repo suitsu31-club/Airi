@@ -43,9 +43,11 @@ CREATE TABLE "mailer"."send_box" (
 -- Listing by status (held messages for the admin console), newest first.
 CREATE INDEX "send_box_status_mail_id" ON "mailer"."send_box" ("status", "mail_id");
 
--- The fallback job: queued messages the transport never attempted.
-CREATE INDEX "send_box_unattempted_queued_at" ON "mailer"."send_box" ("queued_at")
-    WHERE "status" = 'queued' AND "attempted_at" IS NULL;
+-- The stale job: queued messages neither queued nor attempted recently.
+-- `GREATEST` skips NULL, so an unattempted message counts from `queued_at`.
+CREATE INDEX "send_box_queued_last_activity" ON "mailer"."send_box"
+    (GREATEST("queued_at", "attempted_at"))
+    WHERE "status" = 'queued';
 
 -- The retention job: messages that still have a body.
 CREATE INDEX "send_box_content_created_at" ON "mailer"."send_box" ("created_at")

@@ -1,13 +1,15 @@
-//! Fails messages whose `EmailQueued` was lost.
+//! Fails messages left queued with nothing left to deliver them.
 //!
-//! `SendEmail` stores a message before publishing its `EmailQueued`. If the
-//! publish fails and the caller never retries, the transport never sees the
-//! message and it would stay queued forever. This job marks such messages
-//! failed instead of publishing again: a message that late (a sign-in link,
-//! say) is no longer worth delivering.
+//! A queued message can lose its `EmailQueued` in two ways: `SendEmail`
+//! stored it but the publish failed and the caller never retried, or the
+//! transport hit a retryable failure (relay down, 4xx) until the consumer
+//! gave up retrying and dropped the event. Either way the message would stay
+//! queued forever, and the retention job would keep its body. This job marks
+//! it failed instead of publishing again: a message that late (a sign-in
+//! link, say) is no longer worth delivering.
 
 use crate::config::MailerConfig;
-use crate::entities::db::send_box::FailUnattemptedMail;
+use crate::entities::db::send_box::FailStaleQueuedMail;
 use crate::utils::time::utc_secs_before;
 use base::Error;
 use base::services::config::{ConfigLoader, LoadConfig};
@@ -40,21 +42,22 @@ impl Processor<CronTick> for FailStaleMail {
             .config
             .process(LoadConfig::<MailerConfig>::new())
             .await?;
-        let Some(queued_before) = utc_secs_before(tick.fired_at, config.stale_after_secs) else {
+        let Some(last_activity_before) = utc_secs_before(tick.fired_at, config.stale_after_secs)
+        else {
             return Ok(());
         };
         let failed = self
             .db
-            .process(FailUnattemptedMail {
-                queued_before,
+            .process(FailStaleQueuedMail {
+                last_activity_before,
                 failure_reply: format!(
-                    "not handed to the transport within {} seconds",
+                    "not delivered within {} seconds of being queued or attempted",
                     config.stale_after_secs
                 ),
             })
             .await?;
         if failed > 0 {
-            tracing::warn!(failed, "failed queued mail the transport never attempted");
+            tracing::warn!(failed, "failed queued mail the transport no longer retries");
         }
         Ok(())
     }

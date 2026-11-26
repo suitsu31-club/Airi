@@ -21,8 +21,9 @@ pub enum MailerMode {
 #[serde(default)]
 pub struct MailerConfig {
     pub mode: MailerMode,
-    /// A message queued this long ago that the transport never attempted
-    /// is marked failed: its `EmailQueued` was lost.
+    /// A message still queued this long after it was last queued or
+    /// attempted is marked failed: its `EmailQueued` was lost, or the
+    /// consumer gave up retrying it.
     pub stale_after_secs: u32,
     /// Seconds. The retention job deletes the body of a message created this
     /// long ago, unless it is still queued or held.
