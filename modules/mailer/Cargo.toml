@@ -5,9 +5,15 @@ authors.workspace = true
 edition.workspace = true
 license.workspace = true
 
+[features]
+# `MailDeliveryService` and its hook: the SMTP transport. Off by default, so
+# modules that only call `SendEmail` don't build `lettre`.
+delivery = ["dep:lettre"]
+
 [dependencies]
 # Internal
 app_protobuf = { path = "../../lib/app_protobuf" }
+base = { path = "../base" }
 type_safe_data = {path = "../../lib/type_safe_data"}
 
 # Framework
@@ -47,3 +53,15 @@ tracing = { workspace = true }
 
 # Algorithm
 itertools = { workspace = true }
+blake3 = { workspace = true }
+
+# Secrets
+base64 = { workspace = true }
+zeroize = { workspace = true }
+
+# SMTP (feature `delivery`)
+lettre = { workspace = true, optional = true }
+
+[dev-dependencies]
+# The mail catcher's HTTP API, in `tests/delivery.rs`.
+reqwest = { workspace = true }

@@ -90,3 +90,8 @@
 //!     const INTERVAL: CronJobInterval = CronJobInterval::AtLeast(Duration::from_secs(60));
 //! }
 //! ```
+
+#[cfg(feature = "delivery")]
+pub mod delivery;
+pub mod mail_retention;
+pub mod stale_mail;

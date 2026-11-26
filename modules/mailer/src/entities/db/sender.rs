@@ -295,8 +295,9 @@ impl Execute<PgSource> for ListSmtpSenders {
     }
 }
 
-/// Replace every setting of a sender except its credentials. Outputs the
-/// updated row, `None` if the sender does not exist.
+/// Replace every setting of a sender except its credentials and whether it
+/// is enabled. Outputs the updated row, `None` if the sender does not exist.
+/// Fails with a unique violation if `name` is taken.
 #[derive(Debug, Clone)]
 pub struct UpdateSmtpSender {
     pub id: SmtpSenderId,
@@ -305,7 +306,6 @@ pub struct UpdateSmtpSender {
     pub host: String,
     pub port: i32,
     pub tls_mode: SmtpTlsMode,
-    pub enabled: bool,
     pub remark: String,
 }
 
@@ -324,7 +324,7 @@ impl Execute<PgSource> for UpdateSmtpSender {
             r#"
             UPDATE "mailer"."smtp_sender"
             SET "name" = $2, "address" = $3, "host" = $4, "port" = $5, "tls_mode" = $6,
-                "enabled" = $7, "remark" = $8,
+                "remark" = $7,
                 "updated_at" = now() AT TIME ZONE 'UTC'
             WHERE "id" = $1
             RETURNING
@@ -340,8 +340,46 @@ impl Execute<PgSource> for UpdateSmtpSender {
             self.host,
             self.port,
             self.tls_mode as SmtpTlsMode,
-            self.enabled,
             self.remark,
+        )
+        .fetch_optional(conn)
+        .await
+    }
+}
+
+/// Enable or disable a sender. Outputs the updated row, `None` if the sender
+/// does not exist.
+#[derive(Debug, Clone, Copy)]
+pub struct SetSmtpSenderEnabled {
+    pub id: SmtpSenderId,
+    pub enabled: bool,
+}
+
+impl Query for SetSmtpSenderEnabled {
+    type Effect = Write<SmtpSenderEntity>;
+}
+
+impl Execute<PgSource> for SetSmtpSenderEnabled {
+    type Output = Option<SmtpSenderEntity>;
+    type Error = sqlx::Error;
+
+    #[tracing::instrument(skip_all, err)]
+    async fn execute(self, conn: &mut PgConnection) -> Result<Self::Output, Self::Error> {
+        sqlx::query_as!(
+            SmtpSenderEntity,
+            r#"
+            UPDATE "mailer"."smtp_sender"
+            SET "enabled" = $2, "updated_at" = now() AT TIME ZONE 'UTC'
+            WHERE "id" = $1
+            RETURNING
+                "id" AS "id: SmtpSenderId", "name", "address" AS "address: EmailAddress",
+                "host", "port", "tls_mode" AS "tls_mode: SmtpTlsMode",
+                "username_encrypted" AS "username_encrypted: SmtpSecret",
+                "password_encrypted" AS "password_encrypted: SmtpSecret",
+                "enabled", "remark", "created_at", "updated_at"
+            "#,
+            self.id as SmtpSenderId,
+            self.enabled,
         )
         .fetch_optional(conn)
         .await
@@ -382,5 +420,69 @@ impl Execute<PgSource> for SetSmtpSenderCredentials {
         .execute(conn)
         .await?;
         Ok(result.rows_affected() > 0)
+    }
+}
+
+/// One sender's credentials re-encrypted under another key.
+#[derive(Debug, Clone)]
+pub struct ReencryptedCredentials {
+    pub id: SmtpSenderId,
+    /// The credentials as they were read. The row is changed only while it
+    /// still holds exactly these.
+    pub old: SmtpCredentials,
+    pub new: SmtpCredentials,
+}
+
+/// Replace re-encrypted credentials, all in one statement. A row whose
+/// credentials changed since they were read is left alone. Outputs how many
+/// rows changed.
+#[derive(Debug, Clone)]
+pub struct ReplaceSmtpSenderCredentials {
+    pub rows: Vec<ReencryptedCredentials>,
+}
+
+impl Query for ReplaceSmtpSenderCredentials {
+    type Effect = Write<SmtpSenderEntity>;
+}
+
+impl Execute<PgSource> for ReplaceSmtpSenderCredentials {
+    type Output = u64;
+    type Error = sqlx::Error;
+
+    #[tracing::instrument(skip_all, err)]
+    async fn execute(self, conn: &mut PgConnection) -> Result<Self::Output, Self::Error> {
+        let len = self.rows.len();
+        let mut ids = Vec::with_capacity(len);
+        let mut old_usernames = Vec::with_capacity(len);
+        let mut old_passwords = Vec::with_capacity(len);
+        let mut new_usernames = Vec::with_capacity(len);
+        let mut new_passwords = Vec::with_capacity(len);
+        for row in self.rows {
+            ids.push(row.id.0);
+            old_usernames.push(row.old.username_encrypted.ciphertext().to_vec());
+            old_passwords.push(row.old.password_encrypted.ciphertext().to_vec());
+            new_usernames.push(row.new.username_encrypted.ciphertext().to_vec());
+            new_passwords.push(row.new.password_encrypted.ciphertext().to_vec());
+        }
+        let result = sqlx::query!(
+            r#"
+            UPDATE "mailer"."smtp_sender" AS "sender"
+            SET "username_encrypted" = "row"."new_username",
+                "password_encrypted" = "row"."new_password"
+            FROM UNNEST($1::uuid[], $2::bytea[], $3::bytea[], $4::bytea[], $5::bytea[])
+                AS "row" ("id", "old_username", "old_password", "new_username", "new_password")
+            WHERE "sender"."id" = "row"."id"
+                AND "sender"."username_encrypted" = "row"."old_username"
+                AND "sender"."password_encrypted" = "row"."old_password"
+            "#,
+            &ids,
+            &old_usernames,
+            &old_passwords,
+            &new_usernames,
+            &new_passwords,
+        )
+        .execute(conn)
+        .await?;
+        Ok(result.rows_affected())
     }
 }
