@@ -61,7 +61,3 @@ zeroize = { workspace = true }
 
 # SMTP (feature `delivery`)
 lettre = { workspace = true, optional = true }
-
-[dev-dependencies]
-# The mail catcher's HTTP API, in `tests/delivery.rs`.
-reqwest = { workspace = true }
