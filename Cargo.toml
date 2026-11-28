@@ -4,6 +4,7 @@ members = [
     "bin/app-server",
     "bin/manage-tool",
     "lib/app_protobuf",
+    "lib/bridge",
     "lib/type_safe_data",
     "modules/auth",
     "modules/base",
