@@ -8,10 +8,12 @@ license.workspace = true
 [dependencies]
 # Internal
 base = { path = "../../modules/base" }
+mailer = { path = "../../modules/mailer", features = ["delivery"] }
 app_protobuf = { path = "../../lib/app_protobuf" }
 
 # Runtime
 tokio = { workspace = true }
+tokio-util = { workspace = true }
 
 # Framework
 wakuwaku = { workspace = true }
@@ -20,6 +22,7 @@ kanau = { workspace = true }
 # Workers: gRPC / REST / Iggy consumer / cron
 # (Iggy is reached through `wakuwaku::deps::iggy`.)
 tonic = { workspace = true }
+tonic-health = { workspace = true }
 axum = { workspace = true }
 tower = { workspace = true }
 
@@ -28,11 +31,16 @@ sqlx = { workspace = true }
 redis = { workspace = true }
 
 # Configuration
+clap = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 
+# Errors
+anyhow = { workspace = true }
+
 # Observability
 tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
 opentelemetry = { workspace = true }
 opentelemetry_sdk = { workspace = true }
 opentelemetry-otlp = { workspace = true }
